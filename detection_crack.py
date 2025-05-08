@@ -1,132 +1,158 @@
+import torch
+import torchvision
+from torchvision import transforms
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 import os
-from mrcnn.config import Config
-from mrcnn.model import MaskRCNN
-from mrcnn.utils import Dataset
-import imgaug
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
+from torchvision.models.detection import MaskRCNN
+from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
+from torchvision.models.detection import MaskRCNN_ResNet50_FPN_Weights
+from torchvision.transforms.functional import to_pil_image
+from PIL import Image
 
-# 1. 이미지 전처리: 엣지 검출 및 추가 개선
-def preprocess_image(image_path):
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    # 히스토그램 평활화
-    img_eq = cv2.equalizeHist(img)
-    blur = cv2.GaussianBlur(img_eq, (5, 5), 0)
-    edges = cv2.Canny(blur, threshold1=50, threshold2=150)
-    
-    # Adaptive Thresholding
-    _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 결과 시각화
-    plt.subplot(1, 2, 1)
-    plt.imshow(edges, cmap='gray')
-    plt.title("Canny Edge")
-    plt.subplot(1, 2, 2)
-    plt.imshow(thresh, cmap='gray')
-    plt.title("Thresholded Image")
-    plt.show()
-
-    return edges
-
-# 2. Mask R-CNN 데이터셋 준비 (데이터 증강 포함)
+# 1. 데이터셋 클래스 정의
 class TireCrackDataset(Dataset):
-    def load_dataset(self, dataset_dir, subset):
-        self.add_class("tire", 0, "crack")  # 크랙
-        self.add_class("tire", 1, "good")   # 정상 타이어
+    def __init__(self, dataset_dir, subset, transform=None):
+        self.dataset_dir = dataset_dir
+        self.subset = subset
+        self.transform = transform
+        self.image_paths = []
+        self.load_dataset()
 
-        # 'defective_train'과 'good_train' 데이터 로드
-        for subset_name in ['defective_train', 'good_train']:
-            image_dir = os.path.join(dataset_dir, subset_name)
-            for image_id in os.listdir(image_dir):
-                if image_id.endswith(".jpg") or image_id.endswith(".png"):
-                    image_path = os.path.join(image_dir, image_id)
-                    self.add_image("tire", image_id=image_id, path=image_path)
+    def load_dataset(self):
+        image_dir = os.path.join(self.dataset_dir, self.subset)
+        for image_id in os.listdir(image_dir):
+            if image_id.endswith(".jpg") or image_id.endswith(".png"):
+                image_path = os.path.join(image_dir, image_id)
+                self.image_paths.append(image_path)
 
-    def load_mask(self, image_id):
-        image_info = self.image_info[image_id]
-        image_path = image_info['path']
-        
-        # 마스크 생성
-        mask = preprocess_image(image_path)
-        mask = np.expand_dims(mask, axis=-1)  # (height, width, 1)
+    def __len__(self):
+        return len(self.image_paths)
 
-        # 크랙 데이터와 정상 데이터를 구별
-        if 'defective' in image_path:
-            return mask, np.array([1])  # 크랙 클래스 ID
-        else:
-            return mask, np.array([0])  # 정상 타이어 클래스 ID
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        image = cv2.imread(image_path)
 
-    def augment(self, image, mask):
-        seq = imgaug.augmenters.Sequential([
-            imgaug.augmenters.Fliplr(0.5),  # 좌우 반전
-            imgaug.augmenters.Affine(rotate=(-45, 45)),  # 회전
-            imgaug.augmenters.Scale((0.8, 1.2))  # 크기 조정
+        if image is None:
+            raise ValueError(f"Error loading image: {image_path}")
+
+        if len(image.shape) == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image_pil = Image.fromarray(image_rgb)
+
+        transform = transforms.Compose([
+            transforms.Resize((512, 512)),  # 크기 먼저 조정
+            transforms.ToTensor()
         ])
-        return seq(image=image, segmentation_maps=mask)
+        image_tensor = transform(image_pil)
 
-# 3. Mask R-CNN 구성
-class TireCrackConfig(Config):
-    NAME = "tire_crack"
-    IMAGES_PER_GPU = 2
-    NUM_CLASSES = 3  # 1: 크랙, 0: 정상 타이어, 배경은 제외
-    STEPS_PER_EPOCH = 100
-    VALIDATION_STEPS = 50
+        target = {
+            "boxes": torch.tensor([[0, 0, 512, 512]], dtype=torch.float32),
+            "labels": torch.tensor([1], dtype=torch.int64),
+            "masks": torch.zeros((1, 512, 512), dtype=torch.float32),
+        }
 
-# 4. Mask R-CNN 모델 학습
+        return image_tensor, target
+
+# 2. 모델 설정
+def get_model():
+    weights = MaskRCNN_ResNet50_FPN_Weights.DEFAULT
+    model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights=weights)
+
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    model.roi_heads.box_predictor = MaskRCNNPredictor(in_features, 256, 2)
+
+    return model.to(device)
+
+# 3. 모델 학습 함수
 def train_model():
-    config = TireCrackConfig()
-    model = MaskRCNN(mode="training", config=config, model_dir='./logs')
+    model = get_model()
+    model.train()
 
-    # 학습용 데이터셋 로드
-    dataset_train = TireCrackDataset()
-    dataset_train.load_dataset('./defect_data', 'defective_train')
-    dataset_train.prepare()
+    transform = transforms.Compose([
+        transforms.Resize((512, 512))
+    ])
+    dataset_train = TireCrackDataset("./defect_data", "defective_train", transform=transform)
 
-    # 데이터 증강 적용
-    augmented_image, augmented_mask = dataset_train.augment(dataset_train.load_image(0), dataset_train.load_mask(0)[0])
+    # collate_fn 수정 → 크기 맞춰서 배치 형태 유지
+    def collate_fn(batch):
+        images, targets = zip(*batch)
+        images = torch.stack([img.to(device) for img in images])  # 크기 통일 후 스택 적용
+        targets = [{k: (v.to(device).long() if k == "labels" else v.to(device).float()) for k, v in t.items()} for t in targets]
+        return images, targets
 
-    # 모델 훈련
-    model.train(dataset_train, dataset_train,
-                learning_rate=config.LEARNING_RATE,
-                epochs=20,
-                layers='heads')
+    dataset_train_loader = DataLoader(dataset_train, batch_size=2, shuffle=True, collate_fn=collate_fn)
 
-# 5. Mask R-CNN 추론 (테스트)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+    for epoch in range(10):
+        for images, targets in dataset_train_loader:
+            print(f"Training - Image Tensor Shape: {images.shape}")  # 디버깅용 출력
+            
+            optimizer.zero_grad()
+            loss_dict = model(images, targets)
+            losses = sum(loss for loss in loss_dict.values())
+
+            losses.backward()
+            optimizer.step()
+
+        print(f"Epoch {epoch} Loss: {losses.item()}")
+
+    torch.save(model.state_dict(), "tire_crack_model.pth")
+    print("모델이 저장되었습니다.")
+
+# 4. 추론 함수
 def detect_crack(image_path):
-    config = TireCrackConfig()
-    model = MaskRCNN(mode="inference", config=config, model_dir='./logs')
-    model.load_weights('./logs/tire_crack20180507T1014/mask_rcnn_tire_crack_0010.h5', by_name=True)
+    model = get_model()
+    model.load_state_dict(torch.load("tire_crack_model.pth"))
+    model.eval()
 
-    # 이미지 로드
     image = cv2.imread(image_path)
-    results = model.detect([image])
 
-    r = results[0]
-    plt.imshow(image)
-    for i in range(len(r['rois'])):
-        # 바운딩 박스와 마스크 시각화
-        y1, x1, y2, x2 = r['rois'][i]
-        plt.gca().add_patch(plt.Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, color='red', linewidth=2))
-        mask = r['masks'][:, :, i]
-        plt.imshow(mask, alpha=0.5, cmap='jet')
-    
+    if image is None:
+        raise ValueError(f"Error loading image: {image_path}")
+
+    if len(image.shape) == 2:
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image_pil = Image.fromarray(image_rgb)
+
+    transform = transforms.Compose([
+        transforms.Resize((512, 512)),  
+        transforms.ToTensor()
+    ])
+    image_tensor = transform(image_pil).unsqueeze(0).to(device)
+
+    print(f"Final Input Tensor Shape: {image_tensor.shape}")  # 배치 차원 확인
+
+    with torch.no_grad():
+        prediction = model(image_tensor)
+
+    plt.imshow(np.array(image_pil))
+    for i in range(len(prediction[0]["masks"])):
+        score = prediction[0]["scores"][i].item()
+        if score > 0.5:
+            mask = prediction[0]["masks"][i, 0].mul(255).byte().cpu().numpy()
+            plt.imshow(mask, alpha=0.3, cmap="jet")
+
     plt.title("Detected Crack Instances")
-    plt.axis('off')
+    plt.axis("off")
     plt.show()
 
-    return r
+    return prediction
 
+# 5. 실행 엔트리포인트
 if __name__ == "__main__":
-    # 모델 학습: python --version
-    # train_model()
+    print("Main script running...")
+    train_model()
 
-    # 테스트 이미지로 추론:
-    test_image = './defect_data/defective_test/Defective (2).jpg'
-    result = detect_crack(test_image)
+    test_image_path = "Defective (1).jpg"
+    result = detect_crack(test_image_path)
     print("Detection Results:", result)
-    # 결과 시각화
-    plt.imshow(result['masks'][:, :, 0], cmap='jet', alpha=0.5)
-    plt.title("Detected Crack Mask")
-    plt.axis('off')
-    plt.show()

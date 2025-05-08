@@ -13,3 +13,6 @@ cv2.destroyAllWindows()
 
 # 저장 (선택)
 cv2.imwrite("inverted_image.jpg", inverted_image)
+
+
+# 색상 반전 후 하얀색 이미지를 추출해내는 방향으로 해야할 듯?

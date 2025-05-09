@@ -1,132 +1,201 @@
+import os
 import torch
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-import os
 from torchvision import transforms
+from torchvision.models.detection import maskrcnn_resnet50_fpn
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
+from torch.optim import Adam
+import torchvision.transforms.functional as TF
+from tqdm import tqdm
 
+# --------------------------------------------------
+# Dataset 정의
+# --------------------------------------------------
 class TireCrackDataset(Dataset):
-    def __init__(self, image_dir, mask_dir, transform=None):
+    def __init__(self, image_dir, mask_dir=None, transform=None, target_size=(256, 256), use_mask=True):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
-        self.image_files = sorted(os.listdir(image_dir))  # 이미지 파일 목록
-        self.mask_files = sorted(os.listdir(mask_dir))  # 마스크 파일 목록
-
-        # 이미지와 마스크의 개수를 맞추기 위해 30개까지만 사용
-        self.image_files = [f for f in self.image_files if f.endswith(('.jpg', '.png'))]
-        self.mask_files = [f for f in self.mask_files if f.endswith('.png')]
-
-        # 마스크가 없는 이미지들은 제외
-        self.mask_files = self.mask_files[:30]
-        self.image_files = self.image_files[:30]
-
+        self.image_files = sorted([f for f in os.listdir(image_dir) if f.endswith(('.jpg', '.png'))])
         self.transform = transform
+        self.target_size = target_size
+        self.use_mask = use_mask and mask_dir is not None
+
+        if self.use_mask:
+            self.mask_files = sorted([f for f in os.listdir(mask_dir) if f.endswith('.png')])
+            paired = list(zip(self.image_files, self.mask_files))[:30]
+            self.image_files, self.mask_files = zip(*paired)
+        else:
+            self.mask_files = [None] * len(self.image_files)
 
     def __len__(self):
         return len(self.image_files)
 
     def __getitem__(self, idx):
         image_path = os.path.join(self.image_dir, self.image_files[idx])
-        mask_path = os.path.join(self.mask_dir, self.mask_files[idx])
+        image = Image.open(image_path).convert("RGB").resize(self.target_size)
+        image_tensor = self.transform(image) if self.transform else TF.to_tensor(image)
 
-        image = Image.open(image_path).convert("RGB")
-        mask = Image.open(mask_path).convert("L")
+        if self.use_mask and self.mask_files[idx]:
+            mask_path = os.path.join(self.mask_dir, self.mask_files[idx])
+            mask = Image.open(mask_path).convert("L").resize(self.target_size)
+            mask = np.array(mask)
+            mask[mask > 0] = 1
 
-        # 마스크를 이진화 (1은 crack, 0은 no crack)
-        mask = np.array(mask)
-        mask[mask > 0] = 1
+            boxes = self.get_bounding_boxes(mask)
+            return {
+                "image": image_tensor,
+                "mask": torch.tensor(mask, dtype=torch.uint8),
+                "boxes": boxes,
+                "labels": torch.ones(len(boxes), dtype=torch.int64)
+            }
+        else:
+            return {
+                "image": image_tensor,
+                "image_name": self.image_files[idx]
+            }
 
-        sample = {"image": image, "mask": mask}
-
-        if self.transform:
-            sample["image"] = self.transform(sample["image"])
-
-        return sample
-
+    def get_bounding_boxes(self, mask):
+        boxes = []
+        unique_labels = np.unique(mask)
+        for label in unique_labels:
+            if label == 0:
+                continue
+            mask_idx = np.where(mask == label)
+            min_x, max_x = np.min(mask_idx[1]), np.max(mask_idx[1])
+            min_y, max_y = np.min(mask_idx[0]), np.max(mask_idx[0])
+            boxes.append([min_x, min_y, max_x, max_y])
+        return torch.tensor(boxes, dtype=torch.float32)
 
 def collate_fn(batch):
-    # 여러 개의 샘플(batch)을 합치는 collate 함수
-    images = []
-    masks = []
-    
-    for sample in batch:
-        images.append(sample['image'])
-        masks.append(sample['mask'])
-    
-    # 배치 차원 추가하여 텐서로 변환
-    images = torch.stack(images, dim=0)
-    masks = torch.stack(masks, dim=0)
-    
-    return {'image': images, 'mask': masks}
+    has_mask = 'mask' in batch[0]
+    if has_mask:
+        return {
+            'image': torch.stack([b['image'] for b in batch]),  # 이미지 배치를 텐서로 처리
+            'mask': torch.stack([b['mask'] for b in batch]),
+            'boxes': [b['boxes'] for b in batch],
+            'labels': [b['labels'] for b in batch]
+        }
+    else:
+        return {
+            'image': torch.stack([b['image'] for b in batch]),
+            'image_name': [b['image_name'] for b in batch]
+        }
 
-# 모델 초기화 및 학습
-class TireCrackModel:
-    def __init__(self, image_dir, mask_dir, model_save_dir, batch_size=2, num_classes=2, lr=0.005, num_epochs=10, device=None):
-        self.image_dir = image_dir
-        self.mask_dir = mask_dir
-        self.model_save_dir = model_save_dir
-        self.batch_size = batch_size
-        self.num_classes = num_classes
-        self.lr = lr
-        self.num_epochs = num_epochs
-        self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = self.get_model(num_classes)
-        self.model.to(self.device)
-        self.optimizer = Adam(self.model.parameters(), lr=self.lr)
-        self.transform = transforms.Compose([transforms.ToTensor()])
-        
-        # Dataset 및 DataLoader 설정
-        self.dataset = TireCrackDataset(self.image_dir, self.mask_dir, self.transform)
-        self.dataloader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True, num_workers=4, collate_fn=collate_fn)
+# --------------------------------------------------
+# 모델 정의 및 유틸
+# --------------------------------------------------
+def get_model(num_classes=2):
+    model = maskrcnn_resnet50_fpn(pretrained=True)
+    in_feat = model.roi_heads.box_predictor.cls_score.in_features
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_feat, num_classes)
 
-    def get_model(self, num_classes):
-        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
-        in_features = model.roi_heads.box_predictor.cls_score.in_features
-        model.roi_heads.box_predictor = torchvision.models.detection.faster_rcnn.FastRCNNPredictor(in_features, num_classes)
-        
-        in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-        model.roi_heads.mask_predictor = torchvision.models.detection.mask_rcnn.MaskRCNNPredictor(in_features_mask, 256, num_classes)
-        
-        return model
+    in_feat_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
+    model.roi_heads.mask_predictor = MaskRCNNPredictor(in_feat_mask, 256, num_classes)
+    return model
 
-    def train_model(self):
-        self.model.train()
-        for epoch in range(self.num_epochs):
-            for i, data in enumerate(self.dataloader):
-                images = [data['image'].to(self.device)]
-                masks = [data['mask'].to(self.device)]
+def save_pseudo_masks(model, dataloader, save_dir, device):
+    model.eval()
+    os.makedirs(save_dir, exist_ok=True)
+    with torch.no_grad():
+        for batch in tqdm(dataloader, desc="Generating pseudo masks"):
+            images = [img.to(device) for img in batch["image"]]
+            names = batch["image_name"]
+            preds = model(images)
 
-                # Forward pass
-                loss_dict = self.model(images, masks)
+            for name, pred in zip(names, preds):
+                if len(pred["masks"]) == 0:
+                    continue
+                mask = pred["masks"][0, 0].cpu().numpy()
+                mask_img = (mask > 0.3).astype(np.uint8) * 255
+                Image.fromarray(mask_img).save(os.path.join(save_dir, name.replace('.jpg', '.png')))
 
-                # 손실 값 계산
-                losses = sum(loss for loss in loss_dict.values())
-                
-                # 역전파 및 최적화
-                self.optimizer.zero_grad()
-                losses.backward()
-                self.optimizer.step()
+# --------------------------------------------------
+# 학습 함수
+# --------------------------------------------------
+def train_model(model, dataloader, device, optimizer, num_epochs=10):
+    model.train()
+    for epoch in range(num_epochs):
+        total_batches = len(dataloader)
+        for i, data in enumerate(dataloader):
+            # 이미지와 마스크를 디바이스로 이동
+            images = data['image'].to(device)
+            
+            # 마스크, 박스, 레이블을 디바이스로 이동
+            masks = data['mask'].to(device) if 'mask' in data else None
+            boxes = [box.to(device) for box in data['boxes']] if 'boxes' in data else None
+            labels = [label.to(device) for label in data['labels']] if 'labels' in data else None
 
-                if i % 10 == 0:
-                    print(f"Epoch [{epoch+1}/{self.num_epochs}], Iter [{i}/{len(self.dataloader)}], Loss: {losses.item()}")
+            # 마스크 크기 조정 (필요시)
+            if masks is not None:
+                masks = masks.unsqueeze(1)  # (H, W) -> (1, H, W)
 
-    def save_model(self, model_name="best_mask_rcnn.pth"):
-        model_save_path = os.path.join(self.model_save_dir, model_name)
-        torch.save(self.model.state_dict(), model_save_path)
-        print(f"Model saved to {model_save_path}")
+            # 박스가 비어 있지 않은 경우에만 targets 생성
+            targets = []
+            if boxes and labels:  # boxes와 labels가 모두 있을 경우에만
+                for b, l, m in zip(boxes, labels, masks if masks is not None else [None]*len(boxes)):
+                    if len(b) > 0:  # 박스가 비어 있지 않으면
+                        targets.append({'boxes': b, 'labels': l, 'masks': m})
+            
+            # targets가 비어 있다면 skip (빈 박스만 있는 경우는 건너뛰기)
+            if not targets:
+                continue
 
-# 학습 코드 예시
+            # images와 targets의 길이가 일치하는지 확인
+            if len(images) != len(targets):
+                print(f"Warning: Mismatch between images ({len(images)}) and targets ({len(targets)})")
+                continue  # 이미지와 타겟의 길이가 맞지 않으면 해당 배치를 건너뜀
+            
+            # Forward pass
+            loss_dict = model(images, targets)
+
+            # 손실 값 계산
+            losses = sum(loss for loss in loss_dict.values())
+
+            # 역전파 및 최적화
+            optimizer.zero_grad()
+            losses.backward()
+            optimizer.step()
+
+            # 진행상황 출력 (매 10번째 배치마다 출력)
+            if i % 10 == 0:
+                epoch_progress = (epoch + 1) / num_epochs * 100
+                iter_progress = (i + 1) / total_batches * 100
+                print(f"Epoch [{epoch+1}/{num_epochs}] ({epoch_progress:.2f}%), Iter [{i}/{total_batches}] ({iter_progress:.2f}%), Loss: {losses.item()}")
+
+# --------------------------------------------------
+# 메인 파이프라인
+# --------------------------------------------------
 if __name__ == "__main__":
-    # 데이터셋 및 모델 경로 설정
-    image_dir = 'defect_data/defective_train'
-    mask_dir = 'defect_data/mask_result'  # 초기 30개의 마스크
-    model_save_dir = 'model_weights'
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    transform = transforms.Compose([transforms.ToTensor()])
+    
+    # 1단계: 30개 마스크로 학습
+    labeled_dataset = TireCrackDataset("defect_data/defective_train", "defect_data/mask_result", transform=transform, use_mask=True)
+    labeled_loader = DataLoader(labeled_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
+    
+    model = get_model()
+    optimizer = Adam(model.parameters(), lr=1e-5)  # optimizer 정의
+    print("Training with labeled data...")
+    train_model(model, labeled_loader, device, optimizer, num_epochs=10)
+    
+    # 2단계: 마스크 없는 이미지에 pseudo-mask 생성
+    unlabeled_dataset = TireCrackDataset("defect_data/defective_train", use_mask=False, transform=transform)
+    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
+    
+    print("Generating pseudo labels...")
+    save_pseudo_masks(model, unlabeled_loader, "defect_data/pseudo_mask", device)
+    
+    # 3단계: pseudo-mask를 포함해 전체 데이터로 재학습
+    print("Re-training with pseudo-labeled data...")
+    pseudo_dataset = TireCrackDataset("defect_data/defective_train", "defect_data/pseudo_mask", transform=transform, use_mask=True)
+    pseudo_loader = DataLoader(pseudo_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn)
 
-    # 모델 인스턴스 생성
-    model = TireCrackModel(image_dir, mask_dir, model_save_dir, batch_size=2, num_classes=2, lr=0.005, num_epochs=10)
+    model = get_model()
+    optimizer = Adam(model.parameters(), lr=1e-5)  # optimizer 정의
+    train_model(model, pseudo_loader, device, optimizer, num_epochs=10)
 
-    # 모델 학습
-    model.train_model()
-
-    # 학습된 모델 저장
-    model.save_model()
+    torch.save(model.state_dict(), "model_weights/final_model.pth")
+    print("Final model saved.")

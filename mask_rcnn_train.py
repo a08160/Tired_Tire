@@ -49,5 +49,5 @@ if __name__ == "__main__":
     vgg_json_to_mask(
         json_dir="defect_data/defective_train_mask",     # .json 파일이 있는 폴더
         image_dir="defect_data/defective_train",         # 원본 이미지 폴더
-        save_dir="result"                                # 마스크 저장 폴더
+        save_dir="mask_result"                                # 마스크 저장 폴더
     )

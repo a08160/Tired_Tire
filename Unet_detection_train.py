@@ -5,7 +5,7 @@ from typing import Optional
 
 
 def auto_pad(kernel_size: int, dilation: int) -> int:
-    """Padding mode = `same`"""
+    """Padding mode = same"""
     padding = (kernel_size - 1) // 2 * dilation
     return padding
 
@@ -182,6 +182,23 @@ import numpy as np
 # UNet 모델 클래스 
 
 # 1️⃣ Custom Dataset
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+# 1️⃣ Albumentations 기반 증강 정의
+train_transform = A.Compose([
+    A.Resize(256, 256),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    A.RandomBrightnessContrast(p=0.2),
+    A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.1, rotate_limit=15, p=0.5),
+    A.GaussianBlur(p=0.1),
+    A.Normalize(mean=(0.485, 0.456, 0.406),  # ImageNet mean/std
+                std=(0.229, 0.224, 0.225)),
+    ToTensorV2()
+])
+
+# 2️⃣ 수정된 Dataset 클래스
 class TireCrackDataset(Dataset):
     def __init__(self, image_dir, mask_dir, transform=None):
         self.image_dir = image_dir
@@ -196,25 +213,32 @@ class TireCrackDataset(Dataset):
         img_path = os.path.join(self.image_dir, self.images[idx])
         mask_path = os.path.join(self.mask_dir, self.images[idx].replace('.jpg', '.png'))
 
-        image = Image.open(img_path).convert("RGB")
-        mask = Image.open(mask_path).convert("L")
+        image = np.array(Image.open(img_path).convert("RGB"))
+        mask = np.array(Image.open(mask_path).convert("L"))
+
+        # mask를 0 또는 1로 정규화
+        mask = (mask > 0).astype(np.float32)
 
         if self.transform:
-            image = self.transform(image)
-            mask = self.transform(mask)
-
-        mask = (mask > 0).float()  # 0 or 1
+            augmented = self.transform(image=image, mask=mask)
+            image = augmented['image']
+            mask = augmented['mask'].unsqueeze(0)  # (1, H, W)로 만들기 위해
 
         return image, mask
 
 # 2️⃣ Transforms & Dataloader
-transform = T.Compose([
-    T.Resize((256, 256)),
-    T.ToTensor()
+# ✅ 예측용 transform (Albumentations 기반)
+predict_transform = A.Compose([
+    A.Resize(256, 256),
+    A.Normalize(mean=(0.485, 0.456, 0.406),
+                std=(0.229, 0.224, 0.225)),
+    ToTensorV2()
 ])
 
-train_dataset = TireCrackDataset("defect_data/defective_train", "defect_data/mask_result", transform=transform)
+
+train_dataset = TireCrackDataset("defect_data/defective_train", "defect_data/mask", transform=train_transform)
 train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+
 
 # 3️⃣ 모델 정의
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -279,38 +303,39 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 
+# ✅ 수정된 예측 함수
 def predict_and_draw_cracks(model, image_path, transform, device):
     model.eval()
 
-    # 🔹 이미지 불러오기 및 전처리
+    # 🔹 이미지 불러오기
     orig_img = Image.open(image_path).convert("RGB")
-    resized_img = orig_img.resize((256, 256))  # 모델 입력 크기
-    input_tensor = transform(resized_img).unsqueeze(0).to(device)
+    orig_img_np = np.array(orig_img)
+
+    # 🔹 Albumentations transform 적용
+    augmented = transform(image=orig_img_np)
+    input_tensor = augmented['image'].unsqueeze(0).to(device)  # (1, 3, 256, 256)
 
     # 🔹 모델 예측
     with torch.no_grad():
         output = model(input_tensor)
         pred_mask = torch.sigmoid(output)[0, 0].cpu().numpy()
-        pred_mask = (pred_mask > 0.5).astype(np.uint8) * 255  # 이진 마스크 (0 또는 255)
+        pred_mask = (pred_mask > 0.5).astype(np.uint8) * 255
 
     # 🔹 OpenCV로 변환
-    orig_img_cv = np.array(resized_img)
-    orig_img_cv = cv2.cvtColor(orig_img_cv, cv2.COLOR_RGB2BGR)
+    resized_img = cv2.resize(orig_img_np, (256, 256))
+    orig_img_cv = cv2.cvtColor(resized_img, cv2.COLOR_RGB2BGR)
 
     # 🔹 윤곽선 검출
     contours, _ = cv2.findContours(pred_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
-        if w * h < 50:  # 너무 작은 잡음은 무시
+        if w * h < 50:
             continue
-        # 박스 그리기
         cv2.rectangle(orig_img_cv, (x, y), (x+w, y+h), (0, 0, 255), 2)
-        # 레이블 추가
         cv2.putText(orig_img_cv, "crack", (x, y - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-    # 🔹 시각화 (RGB로 다시 변환)
     result_img = cv2.cvtColor(orig_img_cv, cv2.COLOR_BGR2RGB)
     plt.figure(figsize=(6, 6))
     plt.imshow(result_img)
@@ -319,8 +344,8 @@ def predict_and_draw_cracks(model, image_path, transform, device):
     plt.show()
 
 # 예시 이미지 경로
-image_path = "defect_data/file/Defective (31).jpg"  # 테스트 이미지 경로
-predict_and_draw_cracks(model, image_path, transform, device)
+image_path = "defect_data/defective_test/Defective (31).jpg"  # 테스트 이미지 경로
+predict_and_draw_cracks(model, image_path, predict_transform, device)
 
 # 모델 저장
 torch.save(model.state_dict(), "tire_crack_detection_model.pth")
@@ -329,3 +354,11 @@ torch.save(model.state_dict(), "tire_crack_detection_model.pth")
 model = UNet(in_channels=3, out_channels=1)
 model.load_state_dict(torch.load("tire_crack_detection_model.pth"))
 model.eval()
+
+# ⚙️ TorchScript 변환 및 저장
+input = torch.randn(1, 3, 256, 256).to(device)  # 예시 입력
+traced_script_module = torch.jit.trace(model, input)
+
+# TorchScript 저장
+traced_script_module.save("tire_crack_model_scripted.pt")
+print("TorchScript 모델이 저장되었습니다.")

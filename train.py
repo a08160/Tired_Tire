@@ -182,11 +182,21 @@ if __name__ == "__main__":
     train_model(model, labeled_loader, device, optimizer, num_epochs=10)
     
     # 2단계: 마스크 없는 이미지에 pseudo-mask 생성
+
+    # 기존 마스크가 있는 이미지 이름 목록 만들기
+    labeled_mask_names = set([f.replace('.png', '.jpg') for f in os.listdir("defect_data/mask_result")])
+
+    # 전체 이미지에서 마스크 없는 이미지만 필터링
     unlabeled_dataset = TireCrackDataset("defect_data/defective_train", use_mask=False, transform=transform)
+    unlabeled_dataset.image_files = [f for f in unlabeled_dataset.image_files if f not in labeled_mask_names]
+
+    # DataLoader 정의
     unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
-    
-    print("Generating pseudo labels...")
+
+    # pseudo mask 생성
+    print("Generating pseudo labels for unlabeled images only...")
     save_pseudo_masks(model, unlabeled_loader, "defect_data/pseudo_mask", device)
+
     
     # 3단계: pseudo-mask를 포함해 전체 데이터로 재학습
     print("Re-training with pseudo-labeled data...")

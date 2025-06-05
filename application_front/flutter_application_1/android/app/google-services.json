@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "913827750855",
+    "project_id": "tired-tire",
+    "storage_bucket": "tired-tire.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:913827750855:android:02c0a4e5c1cd9fadf62fe2",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Z0yHiMDbngT-kt9PgseHBYs3pHkrl0I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

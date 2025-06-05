@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'diagnosis_menu_page.dart';
 
 class HomePage extends StatelessWidget {
   @override
@@ -68,13 +69,17 @@ class HomePage extends StatelessWidget {
               SizedBox(height: 24),
               Row(
                 children: [
-                  Expanded(child: _iconButton('불량 진단', Icons.camera_alt)),
+                  Expanded(
+                    child: _iconButton(context, '불량 진단', Icons.camera_alt),
+                  ),
                   SizedBox(width: 16),
-                  Expanded(child: _iconButton('정비소 찾기', Icons.location_on)),
+                  Expanded(
+                    child: _iconButton(context, '정비소 찾기', Icons.location_on),
+                  ),
                 ],
               ),
               SizedBox(height: 16),
-              _iconButton('게시판', Icons.article),
+              _iconButton(context, '게시판', Icons.article),
             ],
           ),
         ),
@@ -106,20 +111,30 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _iconButton(String label, IconData icon) {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white, size: 24),
-          SizedBox(height: 8),
-          Text(label, style: TextStyle(color: Colors.white)),
-        ],
+  Widget _iconButton(BuildContext context, String label, IconData icon) {
+    return GestureDetector(
+      onTap: () {
+        if (label == '불량 진단') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => DiagnosisMenuPage()),
+          );
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 24),
+            SizedBox(height: 8),
+            Text(label, style: TextStyle(color: Colors.white)),
+          ],
+        ),
       ),
     );
   }

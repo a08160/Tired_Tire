@@ -97,6 +97,18 @@ async def predict(file: UploadFile = File(...)):
         file_bytes = np.asarray(bytearray(contents), dtype=np.uint8)
         image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         result = run_inference(image)
-        return JSONResponse(content=result)
+
+        if "error" in result:
+            return JSONResponse(content={"success": False, "message": result["error"]}, status_code=400)
+
+        return JSONResponse(content={
+            "success": True,
+            "air_pct": result["air_pct"],
+            "message": f"타이어 공기압 상태: {result['air_pct']}%"
+        })
+
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        return JSONResponse(
+            content={"success": False, "message": f"서버 오류: {str(e)}"},
+            status_code=500
+        )

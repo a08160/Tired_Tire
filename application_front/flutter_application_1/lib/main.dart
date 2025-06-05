@@ -1,7 +1,12 @@
+// 실행하기 전에 터미널에 아래 명령어 입력하기
+// uvicorn inference_server:app --host 0.0.0.0 --port 8000
 import 'package:flutter/material.dart';
 import 'pages/welcome_page.dart';
+import 'pages/image_crop_page.dart';
+import 'pages/diagnosis_result_page.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 

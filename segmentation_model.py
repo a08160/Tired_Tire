@@ -93,10 +93,10 @@ def visualize_crack_classes_transparent(image_path, crack_areas, labels, min_are
         return image, overlay, 0.0, "양호"
 
     # 면적 구간, 색상, 가중치 정의
-    area_pixel_ranges = [(0, 25000), (25000, 50000), (50000, 75000), (75000, float("inf"))]
-    colors = [(0, 255, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0)]
-    weights = [0.1, 0.2, 0.3, 0.4]
-    area_sums_by_level = [0.0] * 4
+    area_pixel_ranges = [(0, 35000), (35000, 70000), (70000, float("inf"))]
+    colors = [(255, 255, 0), (255, 100, 0), (255, 0, 0)]
+    weights = [0.15, 0.35, 0.5]
+    area_sums_by_level = [0.0] * 3
 
     for idx, area_mm2 in filtered:
         area_pixels = area_mm2 / (PIXEL_TO_MM ** 2)

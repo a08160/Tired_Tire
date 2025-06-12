@@ -113,17 +113,15 @@ def visualize_crack_classes_transparent(image_path, crack_areas, labels, min_are
     else:
         weighted_sum = sum(area * w for area, w in zip(area_sums_by_level, weights))
         risk_score = (weighted_sum / (total_area * max(weights))) * 100
-        risk_score = round(risk_score, 2)
+        risk_score = 100-round(risk_score, 2)
 
     # 등급 산정
-    if risk_score >= 75:
-        grade = "매우 위험"
-    elif risk_score >= 50:
-        grade = "위험"
-    elif risk_score >= 25:
+    if risk_score >= 70:
+        grade = "양호"
+    elif risk_score >= 35:
         grade = "주의"
     else:
-        grade = "양호"
+        grade = "위험"
 
     # 최종 이미지 오버레이
     blended = cv2.addWeighted(image, 0.7, overlay, 0.3, 0)

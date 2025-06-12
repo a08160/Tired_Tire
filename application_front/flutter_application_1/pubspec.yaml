@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  image_picker: ^0.8.7+4
+  csv: ^5.0.0
   cloud_firestore: ^4.0.0
   cupertino_icons: ^1.0.8
   firebase_core: ^2.32.0
@@ -56,6 +58,7 @@ dev_dependencies:
 flutter:
   assets:
     - assets/car.png
+    - assets/car_data.csv
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

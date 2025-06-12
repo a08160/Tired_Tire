@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_page.dart';
 
@@ -9,63 +10,75 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
-  final _nameController = TextEditingController(); // 이름 컨트롤러 추가
   bool _isLoading = false;
 
-  Future<void> _verifyAndLogin() async {
-    final email = _emailController.text.trim();
-    final name = _nameController.text.trim(); // 이름 입력값
+  final String _tempPassword = 'TempPassword123!'; // 회원가입 때 사용한 임시 비밀번호
 
-    if (email.isEmpty || name.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('이름과 이메일을 모두 입력해주세요.')));
+  Future<void> _login() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      _showSnack('이메일을 입력해주세요.');
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Firestore 'users' 컬렉션에서 이름과 이메일 모두 일치하는 문서 조회
-      final querySnapshot =
+      // FirebaseAuth 로그인 시도
+      final userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: _tempPassword);
+
+      final user = userCredential.user;
+
+      if (user == null || !user.emailVerified) {
+        _showSnack('이메일 인증을 완료한 계정으로 로그인해주세요.');
+        return;
+      }
+
+      // Firestore에서 사용자 이름 불러오기
+      final userDoc =
           await FirebaseFirestore.instance
               .collection('users')
-              .where('email', isEqualTo: email)
-              .where('name', isEqualTo: name)
+              .doc(user.uid)
               .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        // 이름과 이메일 모두 일치하는 사용자 존재 -> 로그인 성공 처리
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('로그인 성공!')));
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage()),
-        );
+      if (!userDoc.exists) {
+        _showSnack('회원 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      final userName = userDoc['name'] ?? '사용자';
+
+      _showSnack('로그인 성공!');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage(userName: userName)),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        _showSnack('가입된 계정을 찾을 수 없습니다.');
+      } else if (e.code == 'wrong-password') {
+        _showSnack('비밀번호가 잘못되었습니다.');
       } else {
-        // 일치하는 사용자 없음
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('등록된 이름 또는 이메일이 아닙니다.')));
+        _showSnack('로그인 오류: ${e.message}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('로그인 중 오류가 발생했습니다.')));
+      _showSnack('알 수 없는 오류가 발생했습니다.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   void dispose() {
     _emailController.dispose();
-    _nameController.dispose(); // 이름 컨트롤러 해제
     super.dispose();
   }
 
@@ -79,26 +92,11 @@ class _LoginPageState extends State<LoginPage> {
         title: Text('로그인', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: Padding(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
             TextField(
-              controller: _nameController,
-              style: TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: '이름',
-                labelStyle: TextStyle(color: Colors.white70),
-                filled: true,
-                fillColor: Colors.white24,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              keyboardType: TextInputType.name,
-            ),
-            SizedBox(height: 16),
-            TextField(
+              cursorColor: Colors.grey,
               controller: _emailController,
               style: TextStyle(color: Colors.white),
               decoration: InputDecoration(
@@ -115,7 +113,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             SizedBox(height: 30),
             ElevatedButton(
-              onPressed: _isLoading ? null : _verifyAndLogin,
+              onPressed: _isLoading ? null : _login,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,

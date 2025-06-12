@@ -21,37 +21,37 @@ class _SignUpPageState extends State<SignUpPage> {
   Timer? _emailCheckTimer;
   String? _gender;
 
+  String _tempPassword = "TempPassword123!";
+
   void _sendEmailVerification() async {
     final email = _emailController.text.trim();
-    final password = "TempPassword123!"; // 임시 비밀번호
 
     if (email.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('이메일을 입력해주세요.')));
+      _showSnack('이메일을 입력해주세요.');
       return;
     }
 
-    setState(() {
-      _isSendingEmail = true;
-    });
+    setState(() => _isSendingEmail = true);
 
     try {
-      // 이메일 중복 사용자 체크
-      final List<String> methods = await FirebaseAuth.instance
-          .fetchSignInMethodsForEmail(email);
+      final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(
+        email,
+      );
+
       if (methods.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('이미 가입된 이메일입니다. 로그인 또는 다른 이메일을 입력하세요.')),
-        );
+        _showSnack('이미 가입된 이메일입니다. 로그인하거나 다른 이메일을 입력하세요.');
         setState(() => _isSendingEmail = false);
         return;
       }
 
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: password);
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: email,
+            password: _tempPassword,
+          );
 
-      await credential.user!.sendEmailVerification();
+      final user = userCredential.user!;
+      await user.sendEmailVerification();
 
       setState(() {
         _emailSent = true;
@@ -60,26 +60,18 @@ class _SignUpPageState extends State<SignUpPage> {
 
       _startEmailVerificationCheck();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('인증 이메일이 전송되었습니다. 이메일을 확인해주세요.')));
+      _showSnack('인증 이메일이 전송되었습니다. 이메일을 확인해주세요.');
     } on FirebaseAuthException catch (e) {
-      print('FirebaseAuthException: ${e.code} - ${e.message}');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('이메일 전송 오류: ${e.message}')));
+      _showSnack('이메일 전송 오류: ${e.message}');
       setState(() => _isSendingEmail = false);
     } catch (e) {
-      print('Unexpected error: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('알 수 없는 오류가 발생했습니다.')));
+      _showSnack('알 수 없는 오류가 발생했습니다.');
       setState(() => _isSendingEmail = false);
     }
   }
 
   void _startEmailVerificationCheck() {
-    _emailCheckTimer?.cancel(); // 중복 실행 방지
+    _emailCheckTimer?.cancel();
     _emailCheckTimer = Timer.periodic(Duration(seconds: 3), (timer) async {
       final user = FirebaseAuth.instance.currentUser;
       await user?.reload();
@@ -88,44 +80,31 @@ class _SignUpPageState extends State<SignUpPage> {
         setState(() {
           _isAuthVerified = true;
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('이메일 인증 완료!')));
+        _showSnack('이메일 인증 완료!');
       }
     });
   }
 
   Future<void> _saveUserData() async {
-    final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-
-    if (name.isEmpty || email.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('이름과 이메일은 필수입니다.')));
-      return;
-    }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(email).set({
-        'name': name,
-        'email': email,
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'name': _nameController.text.trim(),
+        'email': user.email,
         'gender': _gender ?? '',
         'birth': _birthController.text.trim(),
         'phone': _phoneController.text.trim(),
         'nickname': _nicknameController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-      print('Firestore에 사용자 정보 저장 완료');
     } catch (e) {
-      print('Firestore 저장 오류: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('사용자 정보 저장 중 오류가 발생했습니다.')));
+      _showSnack('사용자 정보 저장 중 오류가 발생했습니다.');
     }
   }
 
-  void _showCompleteDialog() async {
+  void _completeSignUp() async {
     if (_nameController.text.trim().isEmpty ||
         _gender == null ||
         _birthController.text.trim().length != 8 ||
@@ -133,9 +112,7 @@ class _SignUpPageState extends State<SignUpPage> {
         _phoneController.text.trim().length < 10 ||
         _nicknameController.text.trim().isEmpty ||
         !_isAuthVerified) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('모든 필드를 올바르게 입력하고 이메일 인증을 완료해주세요.')),
-      );
+      _showSnack('모든 필드를 올바르게 입력하고 이메일 인증을 완료해주세요.');
       return;
     }
 
@@ -143,24 +120,26 @@ class _SignUpPageState extends State<SignUpPage> {
 
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: Text(
-            '회원가입 완료! 홈 화면으로 이동합니다.',
-            style: TextStyle(color: Colors.black),
+      builder:
+          (_) => AlertDialog(
+            backgroundColor: Colors.white,
+            title: Text('회원가입 완료!'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                child: Text('확인'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-              child: Text('확인'),
-            ),
-          ],
-        );
-      },
     );
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -262,7 +241,7 @@ class _SignUpPageState extends State<SignUpPage> {
               _buildInputField('닉네임', _nicknameController),
               SizedBox(height: 30),
               ElevatedButton(
-                onPressed: _showCompleteDialog,
+                onPressed: _completeSignUp,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black,
@@ -287,6 +266,7 @@ class _SignUpPageState extends State<SignUpPage> {
         Text(label, style: TextStyle(color: Colors.white)),
         SizedBox(height: 8),
         TextField(
+          cursorColor: Colors.black,
           controller: controller,
           style: TextStyle(color: Colors.white),
           decoration: InputDecoration(

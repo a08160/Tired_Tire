@@ -9,7 +9,7 @@ import segmentation_models_pytorch as smp
 # ===== 사용자 설정 =====
 PIXEL_TO_MM = 0.1  # 1 픽셀 = 0.1mm
 model_path = "best_model.pth"
-image_path = "defect_data/defective_train/Defective (40).jpg"
+image_path = "defect_data/good_train/good (331).jpg"
 min_area = 0  # 분석에 사용할 최소 크랙 면적 (pixel 단위)
 
 # ===== 유틸 함수 =====

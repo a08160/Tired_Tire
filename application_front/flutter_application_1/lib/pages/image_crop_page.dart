@@ -35,7 +35,8 @@ class _ImageCropPageState extends State<ImageCropPage> {
       setState(() {
         _croppedFile = cropped;
       });
-
+      // 코딩온 교육장 192.168.10.17
+      // 르하임 독서실 192.168.0.2
       // 서버로 업로드
       final uri = Uri.parse("http://192.168.10.17:8000/predict"); // ← IP 확인
       final request = http.MultipartRequest('POST', uri)

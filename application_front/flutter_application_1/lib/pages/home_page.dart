@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'car_page.dart';
 import 'profile_page.dart';
 import 'my_car_page.dart';
+import 'package:flutter_application_1/pages/service_center_page.dart';
 
 class Car {
   final String model;
@@ -12,7 +13,7 @@ class Car {
   final String plate;
   final String tireDate;
   final int mileage;
-  final String? docId; // Firestore 문서 ID
+  final String? docId;
 
   Car({
     required this.model,
@@ -100,14 +101,12 @@ class _HomePageState extends State<HomePage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      // Firestore에 새 차량 저장
       final docRef = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('cars')
           .add(selectedCar.toMap());
 
-      // 저장 후 화면에 추가 (docId 포함)
       setState(() {
         _selectedCars.add(
           Car(
@@ -169,7 +168,6 @@ class _HomePageState extends State<HomePage> {
 
                           final carToRemove = _selectedCars[index];
                           if (carToRemove.docId != null) {
-                            // Firestore에서 삭제
                             await FirebaseFirestore.instance
                                 .collection('users')
                                 .doc(user.uid)
@@ -235,13 +233,30 @@ class _HomePageState extends State<HomePage> {
             SizedBox(height: 24),
             Row(
               children: [
-                Expanded(child: _iconButton('불량 진단', Icons.camera_alt)),
+                Expanded(
+                  child: _iconButton(
+                    '불량 진단',
+                    Icons.camera_alt,
+                    onTap: () {
+                      // TODO: 진단 페이지 연결
+                    },
+                  ),
+                ),
                 SizedBox(width: 16),
-                Expanded(child: _iconButton('정비소 찾기', Icons.location_on)),
+                Expanded(
+                  child: _iconButton(
+                    '정비소 찾기',
+                    Icons.location_on,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ServiceCenterPage()),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
-            SizedBox(height: 16),
-            _iconButton('게시판', Icons.article),
           ],
         ),
       ),
@@ -250,7 +265,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildDrawer() {
     return Drawer(
-      backgroundColor: Colors.white, // 배경색 하얀색으로 변경
+      backgroundColor: Colors.white,
       child: Column(
         children: [
           Container(
@@ -286,7 +301,7 @@ class _HomePageState extends State<HomePage> {
             leading: Icon(Icons.directions_car_outlined),
             title: Text('내 차 관리'),
             onTap: () {
-              Navigator.of(context).pop(); // 메뉴 닫기
+              Navigator.of(context).pop();
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => MyCarPage()),
@@ -458,20 +473,23 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _iconButton(String label, IconData icon) {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white),
-          SizedBox(height: 8),
-          Text(label, style: TextStyle(color: Colors.white)),
-        ],
+  Widget _iconButton(String label, IconData icon, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white),
+            SizedBox(height: 8),
+            Text(label, style: TextStyle(color: Colors.white)),
+          ],
+        ),
       ),
     );
   }

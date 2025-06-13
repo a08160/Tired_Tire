@@ -19,7 +19,14 @@ class MyApp extends StatelessWidget {
       title: 'Tired Tire',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        scaffoldBackgroundColor: Colors.white, // 배경색 흰색
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white, // 앱바 배경 흰색
+          elevation: 0,
+        ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.white,
+        ).copyWith(background: Colors.white),
       ),
       home: WelcomePage(),
     );

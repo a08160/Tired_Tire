@@ -9,7 +9,7 @@ import segmentation_models_pytorch as smp
 # ===== 사용자 설정 =====
 PIXEL_TO_MM = 0.1  # 1 픽셀 = 0.1mm
 model_path = "best_model.pth"
-image_path = "defect_data/good_train/good (331).jpg"
+image_path = "defect_data/defective_train/Defective (108).jpg"
 min_area = 0  # 분석에 사용할 최소 크랙 면적 (pixel 단위)
 
 # ===== 유틸 함수 =====
@@ -116,9 +116,9 @@ def visualize_crack_classes_transparent(image_path, crack_areas, labels, min_are
         risk_score = 100-round(risk_score, 2)
 
     # 등급 산정
-    if risk_score >= 70:
+    if risk_score >= 80:
         grade = "양호"
-    elif risk_score >= 35:
+    elif risk_score >= 60:
         grade = "주의"
     else:
         grade = "위험"
@@ -129,7 +129,8 @@ def visualize_crack_classes_transparent(image_path, crack_areas, labels, min_are
     return blended, overlay, risk_score, grade
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
+    # "cuda" if torch.cuda.is_available() else "cpu"
 
     # 모델 로드
     model = smp.UnetPlusPlus(encoder_name='resnet34', encoder_weights=None, in_channels=3, classes=1)

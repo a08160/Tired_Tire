@@ -9,7 +9,7 @@ import segmentation_models_pytorch as smp
 # ===== 사용자 설정 =====
 PIXEL_TO_MM = 0.1  # 1 픽셀 = 0.1mm
 model_path = "best_model.pth"
-image_path = "defect_data/defective_train/Defective (108).jpg"
+image_path = "defect_data/defective_train/Defective (770).jpg"
 min_area = 0  # 분석에 사용할 최소 크랙 면적 (pixel 단위)
 
 # ===== 유틸 함수 =====
@@ -42,6 +42,13 @@ def stitch_mask(crop_preds, coords, image_size, crop_size=(227, 227)):
 # ===== 마스크 생성 및 필터링 =====
 def generate_crop_pseudo_mask(model, device, image_path, crop_size=(227,227), stride=50, min_area=20):
     image = Image.open(image_path).convert("RGB")
+    # === downscaling 추가한 코드 ===
+    max_width = 1000
+    if image.width > max_width:
+        ratio = max_width / image.width
+        new_size = (max_width, int(image.height * ratio))
+        image = image.resize(new_size, Image.Resampling.LANCZOS)
+    # ===========================
     crops, coords = slide_crop(image, crop_size, stride)
 
     preds = []
@@ -69,7 +76,7 @@ def generate_crop_pseudo_mask(model, device, image_path, crop_size=(227,227), st
             crack_count += 1
 
     crack_area_ratio = np.sum(filtered_mask) / (binary_mask.shape[0] * binary_mask.shape[1])
-    return filtered_mask, crack_count, crack_area_ratio
+    return filtered_mask, crack_count, crack_area_ratio, image ###image 수정########
 
 # ===== 크랙 분석 (면적 mm²) =====
 def analyze_cracks(mask, min_area=20):
@@ -84,8 +91,8 @@ def analyze_cracks(mask, min_area=20):
     return crack_areas_mm2, valid_labels
 
 # ===== 위험도 시각화 및 점수 계산 =====
-def visualize_crack_classes_transparent(image_path, crack_areas, labels, min_area=20):
-    image = np.array(Image.open(image_path).convert("RGB"))
+def visualize_crack_classes_transparent(image, crack_areas, labels, min_area=20): ######image 수정
+    image = np.array(image) ######수정사항########
     overlay = np.zeros_like(image, dtype=np.uint8)
 
     filtered = [(i, area) for i, area in enumerate(crack_areas) if area >= min_area]
@@ -139,15 +146,15 @@ if __name__ == "__main__":
     model.eval()
 
     # 마스크 및 분석 수행
-    filtered_mask, crack_count, area_ratio = generate_crop_pseudo_mask(
+    filtered_mask, crack_count, area_ratio, image = generate_crop_pseudo_mask( #####image 수정
         model, device, image_path,
-        crop_size=(227, 227), stride=50, min_area=min_area
+        crop_size=(227, 227), stride=100, min_area=min_area
     )
 
     crack_areas_mm2, valid_labels = analyze_cracks(filtered_mask, min_area)
 
     blended_image, overlay_mask, risk_score, grade = visualize_crack_classes_transparent(
-        image_path=image_path,
+        image=image, ## 수정 ##########
         crack_areas=crack_areas_mm2,
         labels=valid_labels,
         min_area=min_area

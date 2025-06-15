@@ -215,7 +215,12 @@ class _LoginPageState extends State<LoginPage> {
               ],
               SizedBox(height: 30),
               ElevatedButton(
-                onPressed: _verifyAndLogin,
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => HomePage()),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black,

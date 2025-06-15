@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'image_picker_page.dart';
+import 'image_picker_modal.dart';
 
 class DiagnosisMenuPage extends StatefulWidget {
   @override
@@ -20,9 +20,12 @@ class _DiagnosisMenuPageState extends State<DiagnosisMenuPage> {
     }
 
     // 현재는 기능 1, 2 모두 image_picker_page.dart로 이동
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ImagePickerPage()),
+    // 모달로 이미지 선택 화면 호출
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // 모달을 전체화면에 가깝게 만들 수 있음 (선택사항)
+      backgroundColor: Colors.transparent, // 둥글게 만들기 위해 투명 배경
+      builder: (context) => ImagePickerModal(),
     );
   }
 
@@ -31,9 +34,14 @@ class _DiagnosisMenuPageState extends State<DiagnosisMenuPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF1A171D),
       appBar: AppBar(
-        title: Text('불량 진단 메뉴', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        automaticallyImplyLeading: true, // 뒤로가기 버튼 보이게
+        iconTheme: IconThemeData(
+          color: Colors.white, // 뒤로가기 버튼 색상
+          size: 28, // (선택) 크기 약간 키우기
+        ),
+        title: null, // 제목 제거
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -96,11 +104,21 @@ class _DiagnosisMenuPageState extends State<DiagnosisMenuPage> {
               ),
               SizedBox(height: 32),
               ElevatedButton(
-                onPressed: _startDiagnosis,
+                onPressed: () {
+                  if (selectedFunction == null) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('기능을 선택해주세요.')));
+                  } else {
+                    _startDiagnosis();
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   minimumSize: Size(double.infinity, 60),
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
+                  backgroundColor:
+                      selectedFunction == null ? Colors.grey : Colors.white,
+                  foregroundColor:
+                      selectedFunction == null ? Colors.white : Colors.black,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),

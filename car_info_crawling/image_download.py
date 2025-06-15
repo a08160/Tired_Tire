@@ -9,6 +9,7 @@ df = pd.read_csv(csv_path)
 # 저장할 디렉토리 설정
 save_dir = 'car_images'
 os.makedirs(save_dir, exist_ok=True)
+lst =[]
 
 # 이미지 다운로드 및 저장
 for idx, row in df.iterrows():
@@ -16,7 +17,7 @@ for idx, row in df.iterrows():
     image_url = row['이미지']
     
     try:
-        response = requests.get(image_url, timeout=5)
+        response = requests.get(image_url, timeout=2)
         response.raise_for_status()
         
         # 저장 경로 설정 (차종명을 파일명으로)
@@ -30,3 +31,10 @@ for idx, row in df.iterrows():
         
     except Exception as e:
         print(f"[{idx}] 저장 실패 ({car_name}): {e}")
+        lst.append(car_name)
+
+# 저장 실패한 차종 목록 출력
+if lst:
+    print("저장 실패한 차종 목록:")
+    for car in lst:
+        print(car)

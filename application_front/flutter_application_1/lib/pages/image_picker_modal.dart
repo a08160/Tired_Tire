@@ -1,9 +1,8 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'image_crop_page.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'diagnosis_result_page.dart';
 
@@ -29,10 +28,41 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
   }
 
   Future<void> _uploadImage(String imagePath) async {
-    // ✅ 로딩 다이얼로그 띄우기
+    _showLoading();
+
+    try {
+      final uri = Uri.parse("http://192.168.0.25:8000/predict");
+      final request = http.MultipartRequest('POST', uri)
+        ..files.add(await http.MultipartFile.fromPath('file', imagePath));
+
+      final response = await request.send();
+
+      if (response.statusCode == 200) {
+        final respStr = await response.stream.bytesToString();
+        final jsonResult = jsonDecode(respStr);
+        if (!mounted) return;
+
+        Navigator.pop(context); // 로딩창 닫기
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DiagnosisResultPage(result: jsonResult),
+          ),
+        );
+      } else {
+        Navigator.pop(context);
+        _showTopMessage("타이어를 인식할 수 없습니다. 다시 시도해주세요");
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      _showTopMessage("네트워크 오류: $e");
+    }
+  }
+
+  void _showLoading() {
     showDialog(
       context: context,
-      barrierDismissible: false, // 바깥 터치시 닫히지 않게
+      barrierDismissible: false,
       builder: (context) {
         return Center(
           child: Container(
@@ -54,38 +84,39 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
         );
       },
     );
+  }
 
-    try {
-      final uri = Uri.parse("http://192.168.0.25:8000/predict");
-      final request = http.MultipartRequest('POST', uri)
-        ..files.add(await http.MultipartFile.fromPath('file', imagePath));
-
-      final response = await request.send();
-
-      if (response.statusCode == 200) {
-        final respStr = await response.stream.bytesToString();
-        final jsonResult = jsonDecode(respStr);
-        if (!mounted) return;
-
-        Navigator.pop(context); // ✅ 로딩창 닫기
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DiagnosisResultPage(result: jsonResult),
+  // 👉 핵심 Overlay 메시지 함수
+  void _showTopMessage(String message) {
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder:
+          (context) => Positioned(
+            top: 50,
+            left: 20,
+            right: 20,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  message,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
           ),
-        );
-      } else {
-        Navigator.pop(context); // ✅ 로딩창 닫기
-        ScaffoldMessenger.of(
-          Navigator.of(context, rootNavigator: true).context,
-        ).showSnackBar(SnackBar(content: Text("진단 실패: 서버 오류")));
-      }
-    } catch (e) {
-      Navigator.pop(context); // ✅ 로딩창 닫기
-      ScaffoldMessenger.of(
-        Navigator.of(context, rootNavigator: true).context,
-      ).showSnackBar(SnackBar(content: Text("네트워크 오류: $e")));
-    }
+    );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(Duration(seconds: 2), () {
+      overlayEntry.remove();
+    });
   }
 
   @override
@@ -96,7 +127,6 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
-      // 이 부분이 모달의 높이를 거의 전체로 키우는 핵심입니다!
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
@@ -104,7 +134,7 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            /// ✅ 상단 라벨
+            /// 상단 라벨
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
@@ -120,29 +150,70 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
                 ),
               ),
             ),
-
             SizedBox(height: 20),
 
-            /// ✅ 안내 문구
+            /// 안내문구
             Text(
               '타이어의 옆면 전체를\n정면으로 찍어주세요',
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
-
             SizedBox(height: 20),
 
-            /// ✅ 예시 이미지 (Good / Bad)
-            _buildExampleImages(),
-
+            /// 예시 이미지
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildExampleItem(
+                  imagePath: 'assets/tire_good_example.png',
+                  label: 'Good',
+                  labelColor: Colors.green,
+                ),
+                SizedBox(width: 20),
+                _buildExampleItem(
+                  imagePath: 'assets/tire_bad_example.png',
+                  label: 'Bad',
+                  labelColor: Colors.red,
+                ),
+              ],
+            ),
             SizedBox(height: 30),
 
-            /// ✅ 촬영 / 갤러리 선택 버튼
-            _buildSelectButtons(),
-
+            /// 버튼
+            Column(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _getImage(ImageSource.camera),
+                  icon: Icon(Icons.camera_alt),
+                  label: Text("카메라로 촬영"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => _getImage(ImageSource.gallery),
+                  icon: Icon(Icons.photo_library),
+                  label: Text("갤러리에서 선택"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             SizedBox(height: 30),
 
-            /// ✅ 하단 주의사항
+            /// 주의사항
             Text(
               '주의 사항\n• 본 진단은 AI로 진행하는 간이 검사이므로\n  정확한 공기압 정도와는 다소 차이가 있을 수 있습니다.',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
@@ -154,27 +225,6 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
     );
   }
 
-  /// ✅ Good / Bad 예시 이미지 부분 따로 함수로 분리
-  Widget _buildExampleImages() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildExampleItem(
-          imagePath: 'assets/tire_good_example.png',
-          label: 'Good',
-          labelColor: Colors.green,
-        ),
-        SizedBox(width: 20),
-        _buildExampleItem(
-          imagePath: 'assets/tire_bad_example.png',
-          label: 'Bad',
-          labelColor: Colors.red,
-        ),
-      ],
-    );
-  }
-
-  /// ✅ 각각의 예시 이미지 박스 구성
   Widget _buildExampleItem({
     required String imagePath,
     required String label,
@@ -201,41 +251,6 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
           child: Text(
             label,
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// ✅ 선택 버튼 구성
-  Widget _buildSelectButtons() {
-    return Column(
-      children: [
-        ElevatedButton.icon(
-          onPressed: () => _getImage(ImageSource.camera),
-          icon: Icon(Icons.camera_alt),
-          label: Text("카메라로 촬영"),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-            minimumSize: Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-          ),
-        ),
-        SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: () => _getImage(ImageSource.gallery),
-          icon: Icon(Icons.photo_library),
-          label: Text("갤러리에서 선택"),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-            minimumSize: Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
           ),
         ),
       ],

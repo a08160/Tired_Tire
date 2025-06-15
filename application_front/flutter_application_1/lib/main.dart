@@ -2,7 +2,6 @@
 // uvicorn inference_server:app --host 0.0.0.0 --port 8000
 import 'package:flutter/material.dart';
 import 'pages/welcome_page.dart';
-import 'pages/image_crop_page.dart';
 import 'pages/diagnosis_result_page.dart';
 
 void main() {

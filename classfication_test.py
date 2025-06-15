@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     # 모델 경로와 예측할 이미지
     model_script_path = "mobilenet_classification.pt"
-    image_path = "classify_data/test/not_tire/00001.jpg"
+    image_path = "defect_data/defective_train/Defective (2).jpg"
 
     # 예측 실행
     predict_image_scripted(image_path, model_script_path, transform, class_names, show_image=True)

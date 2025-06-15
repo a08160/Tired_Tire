@@ -9,8 +9,16 @@ import segmentation_models_pytorch as smp
 # ===== 사용자 설정 =====
 PIXEL_TO_MM = 0.1  # 1 픽셀 = 0.1mm
 model_path = "best_model.pth"
-image_path = "defect_data/defective_train/Defective (770).jpg"
+# image_path = "defect_data/defective_train/Defective (770).jpg"
 min_area = 0  # 분석에 사용할 최소 크랙 면적 (pixel 단위)
+
+# ✅ 새로 추가하는 모델 로드 함수:
+def load_segmentation_model(model_path, device):
+    model = smp.UnetPlusPlus(encoder_name='resnet34', encoder_weights=None, in_channels=3, classes=1)
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.to(device)
+    model.eval()
+    return model
 
 # ===== 유틸 함수 =====
 def sharpen_image(img_pil):
@@ -135,38 +143,22 @@ def visualize_crack_classes_transparent(image, crack_areas, labels, min_area=20)
 
     return blended, overlay, risk_score, grade
 
-if __name__ == "__main__":
-    device = torch.device("cpu")
-    # "cuda" if torch.cuda.is_available() else "cpu"
+# ========================
+# 전체 통합 추론 파이프라인 함수
+# ========================
 
-    # 모델 로드
-    model = smp.UnetPlusPlus(encoder_name='resnet34', encoder_weights=None, in_channels=3, classes=1)
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    model.to(device)
-    model.eval()
-
-    # 마스크 및 분석 수행
-    filtered_mask, crack_count, area_ratio, image = generate_crop_pseudo_mask( #####image 수정
-        model, device, image_path,
-        crop_size=(227, 227), stride=100, min_area=min_area
+def run_segmentation_inference(model, device, image_path, crop_size=(227, 227), stride=50, min_area=20):
+    filtered_mask, crack_count, area_ratio, image = generate_crop_pseudo_mask(
+        model, device, image_path, crop_size=crop_size, stride=stride, min_area=min_area
     )
 
-    crack_areas_mm2, valid_labels = analyze_cracks(filtered_mask, min_area)
+    crack_areas_mm2, valid_labels = analyze_cracks(filtered_mask, min_area=min_area)
 
     blended_image, overlay_mask, risk_score, grade = visualize_crack_classes_transparent(
-        image=image, ## 수정 ##########
+        image=image,
         crack_areas=crack_areas_mm2,
         labels=valid_labels,
         min_area=min_area
     )
 
-    print(f"크랙 수: {crack_count}")
-    print(f"위험도 점수: {risk_score} / 100")
-    print(f"위험도 등급: {grade}")
-
-    # 예: 이미지 확인용
-    import matplotlib.pyplot as plt
-    plt.imshow(blended_image)
-    plt.title(f"Risk: {risk_score} ({grade})")
-    plt.axis("off")
-    plt.show()
+    return blended_image, crack_count, risk_score, grade

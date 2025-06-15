@@ -295,7 +295,7 @@ def visualize_sample(model, dataloader):
         plt.show()
 
 # 7️⃣ 실행
-train(model, train_loader, criterion, optimizer, epochs=20)
+train(model, train_loader, criterion, optimizer, epochs=1)
 visualize_sample(model, train_loader)
 
 import cv2
@@ -344,7 +344,7 @@ def predict_and_draw_cracks(model, image_path, transform, device):
     plt.show()
 
 # 예시 이미지 경로
-image_path = "defect_data/defective_test/Defective (31).jpg"  # 테스트 이미지 경로
+image_path = "defect_data/defective_train/Defective (40).jpg"  # 테스트 이미지 경로
 predict_and_draw_cracks(model, image_path, predict_transform, device)
 
 # 모델 저장

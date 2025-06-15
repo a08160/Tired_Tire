@@ -61,5 +61,5 @@ def predict_and_draw_cracks(model, image_path, transform, device):
 
 
 # 원하는 테스트 이미지 경로 입력
-image_path = "defect_data/defective_test/Defective (544).jpg"
+image_path = "defect_data/defective_train/Defective (40).jpg"
 predict_and_draw_cracks(model, image_path, predict_transform, device)

@@ -46,7 +46,11 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DiagnosisResultPage(result: jsonResult),
+            builder:
+                (context) => DiagnosisResultPage(
+                  result: jsonResult,
+                  imagePath: imagePath,
+                ),
           ),
         );
       } else {

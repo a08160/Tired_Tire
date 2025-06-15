@@ -1,5 +1,6 @@
 // 실행하기 전에 터미널에 아래 명령어 입력하기
 // uvicorn inference_server:app --host 0.0.0.0 --port 8000
+// image_picker_modal.dart & inference_server.py 에서 ip주소 변경(ipconfig)
 import 'package:flutter/material.dart';
 import 'pages/welcome_page.dart';
 import 'pages/diagnosis_result_page.dart';

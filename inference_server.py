@@ -1,11 +1,7 @@
-# inference_server.py
-
-import math, torch, cv2
-import numpy as np
+import math, torch, cv2, numpy as np
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from PIL import Image
-import io
 import segmentation_models_pytorch as smp
 from albumentations import Compose, Resize, Normalize
 from albumentations.pytorch import ToTensorV2
@@ -49,7 +45,7 @@ def circular_segment_area(r, h):
     except:
         return 0
 
-# 실제 inference 함수
+# 추론 함수
 def run_inference(image_np: np.ndarray):
     img_rgb = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
     img_resized = cv2.resize(img_rgb, (240, 240))
@@ -58,6 +54,7 @@ def run_inference(image_np: np.ndarray):
     with torch.no_grad():
         wheel_mask = torch.sigmoid(wheel_model(input_tensor))[0, 0].cpu().numpy()
         tire_mask = torch.sigmoid(tire_model(input_tensor))[0, 0].cpu().numpy()
+
     wheel_mask = keep_largest((wheel_mask > 0.5).astype(np.uint8))
     tire_mask = keep_largest((tire_mask > 0.5).astype(np.uint8))
 
@@ -89,13 +86,14 @@ def run_inference(image_np: np.ndarray):
 
     return {"air_pct": round(air_pct, 2)}
 
-# FastAPI 엔드포인트
+# 예측 엔드포인트
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         file_bytes = np.asarray(bytearray(contents), dtype=np.uint8)
         image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
         result = run_inference(image)
 
         if "error" in result:

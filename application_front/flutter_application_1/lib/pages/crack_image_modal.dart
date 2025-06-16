@@ -46,9 +46,7 @@ class _CrackImageModalState extends State<CrackImageModal> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (context) =>
-                    CrackResultPage(result: jsonResult, imagePath: imagePath),
+            builder: (context) => CrackResultPage(result: jsonResult),
           ),
         );
       } else {

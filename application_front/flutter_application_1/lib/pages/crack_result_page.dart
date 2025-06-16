@@ -4,16 +4,14 @@ import 'home_page.dart';
 
 class CrackResultPage extends StatelessWidget {
   final Map<String, dynamic> result;
-  final String imagePath;
 
-  CrackResultPage({required this.result, required this.imagePath});
+  CrackResultPage({required this.result});
 
   @override
   Widget build(BuildContext context) {
-    // 일단 데이터만 파싱 (이후에 본격적 로직 넣을 예정)
     double riskScore = (result['risk_score'] ?? 0).toDouble();
     int score = riskScore.round();
-    // 상태 판정
+
     String statusText;
     Color statusColor;
     Color bgColor;
@@ -22,19 +20,19 @@ class CrackResultPage extends StatelessWidget {
 
     if (score >= 80) {
       statusText = "양호";
-      statusColor = Color(0xFF22C55E); // 초록
+      statusColor = Color(0xFF22C55E);
       bgColor = Color(0xFFE6F4E9);
       commentText = "균열이 거의 없어요!";
       statusIcon = Icons.verified;
     } else if (score >= 60) {
       statusText = "주의";
-      statusColor = Color(0xFFFACC15); // 노랑
+      statusColor = Color(0xFFFACC15);
       bgColor = Color(0xFFFFF7E0);
       commentText = "균열이 일부 보입니다.";
       statusIcon = Icons.warning_amber_rounded;
     } else {
       statusText = "위험";
-      statusColor = Color(0xFFEF4444); // 빨강
+      statusColor = Color(0xFFEF4444);
       bgColor = Color(0xFFFFEBEB);
       commentText = "균열이 심각합니다. 즉시 점검하세요!";
       statusIcon = Icons.cancel;
@@ -53,7 +51,6 @@ class CrackResultPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 상태 뱃지 위젯
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -73,8 +70,6 @@ class CrackResultPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 20),
-            // 여기에 순차적으로 위젯 추가할 예정
-            // 점수 표시
             Text.rich(
               TextSpan(
                 text: "균열 위험도 점수 ",
@@ -92,11 +87,8 @@ class CrackResultPage extends StatelessWidget {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
-
-            // 상태에 따른 간단한 코멘트
             Text(commentText, style: TextStyle(fontSize: 18)),
             SizedBox(height: 30),
-            // 이미지 + 막대바
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -106,10 +98,7 @@ class CrackResultPage extends StatelessWidget {
                 _buildScoreBar(score, statusColor),
               ],
             ),
-
             SizedBox(height: 30),
-
-            // AI 코멘트 박스
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(16),
@@ -127,12 +116,10 @@ class CrackResultPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 30),
-
             Column(
               children: [
                 ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: 결과 저장 기능 나중에 구현
                     ScaffoldMessenger.of(
                       context,
                     ).showSnackBar(SnackBar(content: Text('저장 기능 준비 중')));
@@ -148,7 +135,6 @@ class CrackResultPage extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 16),
-
                 ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
@@ -164,7 +150,6 @@ class CrackResultPage extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 16),
-
                 ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pushAndRemoveUntil(
@@ -192,21 +177,29 @@ class CrackResultPage extends StatelessWidget {
   }
 
   Widget _buildResultImage() {
-    // <--여기에 blended_image를 넣고 싶다##########################################
+    String imageUrl = result['blended_image_url'] ?? '';
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
-      child: Image.file(
-        File(imagePath),
+      child: Image.network(
+        imageUrl,
         width: 180,
         height: 180,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 180,
+            height: 180,
+            color: Colors.grey[300],
+            child: Icon(Icons.broken_image, size: 60, color: Colors.grey),
+          );
+        },
       ),
     );
   }
 
   Widget _buildScoreBar(int score, Color activeColor) {
     int activeIndex = _getScoreBarIndex(score);
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [

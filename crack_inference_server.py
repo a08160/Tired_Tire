@@ -32,7 +32,7 @@ async def root():
     return {"message": "Tired Tire 균열 진단 서버 정상 작동 중"}
 
 # 진단 API 엔드포인트
-@app.post("/diagnosis/")
+@app.post("/crack")
 async def diagnose_tire(file: UploadFile = File(...)):
     # 1. 업로드된 파일 저장
     save_dir = "uploads"
@@ -78,4 +78,4 @@ async def diagnose_tire(file: UploadFile = File(...)):
     return result
 
 if __name__ == "__main__":
-    uvicorn.run("crack_inference_server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("crack_inference_server:app", host="0.0.0.0", port=8001, reload=True)

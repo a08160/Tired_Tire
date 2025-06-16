@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'image_picker_modal.dart';
+import 'crack_image_modal.dart';
 
 class DiagnosisMenuPage extends StatefulWidget {
   @override
@@ -19,13 +20,21 @@ class _DiagnosisMenuPageState extends State<DiagnosisMenuPage> {
       return;
     }
 
-    // 현재는 기능 1, 2 모두 image_picker_page.dart로 이동
-    // 모달로 이미지 선택 화면 호출
+    // 기능 분기 처리
+    Widget modal;
+    if (selectedFunction == '타이어 공기압 진단') {
+      modal = ImagePickerModal();
+    } else if (selectedFunction == '타이어 균열 진단') {
+      modal = CrackImageModal(); // ✅ 균열 진단용 새 모달로 분기
+    } else {
+      modal = Container(); // 혹시 모를 fallback
+    }
+
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // 모달을 전체화면에 가깝게 만들 수 있음 (선택사항)
-      backgroundColor: Colors.transparent, // 둥글게 만들기 위해 투명 배경
-      builder: (context) => ImagePickerModal(),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => modal,
     );
   }
 

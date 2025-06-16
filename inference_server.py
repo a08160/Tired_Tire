@@ -87,7 +87,7 @@ def run_inference(image_np: np.ndarray):
     return {"air_pct": round(air_pct, 2)}
 
 # 예측 엔드포인트
-@app.post("/predict")
+@app.post("/air")
 async def predict(file: UploadFile = File(...)):
     try:
         contents = await file.read()

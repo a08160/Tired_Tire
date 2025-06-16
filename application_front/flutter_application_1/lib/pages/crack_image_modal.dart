@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
-import 'diagnosis_result_page.dart';
+import 'crack_result_page.dart';
 
-class ImagePickerModal extends StatefulWidget {
+class CrackImageModal extends StatefulWidget {
   @override
-  State<ImagePickerModal> createState() => _ImagePickerModalState();
+  State<CrackImageModal> createState() => _CrackImageModalState();
 }
 
-class _ImagePickerModalState extends State<ImagePickerModal> {
+class _CrackImageModalState extends State<CrackImageModal> {
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _requestPermissions() async {
@@ -31,7 +31,7 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
     _showLoading();
 
     try {
-      final uri = Uri.parse("http://192.168.10.17:8000/air");
+      final uri = Uri.parse("http://192.168.10.17:8001/crack");
       final request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('file', imagePath));
 
@@ -47,10 +47,8 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
           context,
           MaterialPageRoute(
             builder:
-                (context) => DiagnosisResultPage(
-                  result: jsonResult,
-                  imagePath: imagePath,
-                ),
+                (context) =>
+                    CrackResultPage(result: jsonResult, imagePath: imagePath),
           ),
         );
       } else {
@@ -146,7 +144,7 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '타이어 공기압 진단',
+                '타이어 균열 진단',
                 style: TextStyle(
                   color: Color(0xFF1C3FAA),
                   fontWeight: FontWeight.bold,
@@ -158,7 +156,7 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
 
             /// 안내문구
             Text(
-              '타이어의 옆면 전체를\n정면으로 찍어주세요',
+              '진단할 부분을 확대해\n찍어주세요',
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
@@ -169,13 +167,13 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildExampleItem(
-                  imagePath: 'assets/tire_good_example.png',
+                  imagePath: 'assets/crack_good_example.png',
                   label: 'Good',
                   labelColor: Colors.green,
                 ),
                 SizedBox(width: 20),
                 _buildExampleItem(
-                  imagePath: 'assets/tire_bad_example.png',
+                  imagePath: 'assets/crack_bad_example.png',
                   label: 'Bad',
                   labelColor: Colors.red,
                 ),
@@ -219,7 +217,7 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
 
             /// 주의사항
             Text(
-              '주의 사항\n• 본 진단은 AI로 진행하는 간이 검사이므로\n  정확한 공기압 정도와는 다소 차이가 있을 수 있습니다.',
+              '주의 사항\n• 본 진단은 AI로 진행하는 간이 검사이므로\n  정확한 균열 정도와는 다소 차이가 있을 수 있습니다.',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
               textAlign: TextAlign.center,
             ),

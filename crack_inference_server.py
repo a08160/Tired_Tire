@@ -81,7 +81,7 @@ async def diagnose_tire(file: UploadFile = File(...)):
         blended_pil.save(blended_image_path)
 
         # URL 생성 (이걸 Flutter에서 사용)
-        blended_image_url = f"http://192.168.10.17:8001/static/results/{filename}"
+        blended_image_url = f"http://192.168.10.17:8001/static/results/{filename}" ############ ip주소 변경해서 쓸것
 
         result.update({
             "crack_count": crack_count,

@@ -7,6 +7,10 @@ import 'package:http/http.dart' as http;
 import 'crack_result_page.dart';
 
 class CrackImageModal extends StatefulWidget {
+  final String userName; // ✅ 추가
+
+  CrackImageModal({required this.userName});
+
   @override
   State<CrackImageModal> createState() => _CrackImageModalState();
 }
@@ -31,7 +35,7 @@ class _CrackImageModalState extends State<CrackImageModal> {
     _showLoading();
 
     try {
-      final uri = Uri.parse("http://192.168.10.17:8001/crack");
+      final uri = Uri.parse("http://192.168.0.7:8001/crack");
       final request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('file', imagePath));
 
@@ -46,7 +50,11 @@ class _CrackImageModalState extends State<CrackImageModal> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CrackResultPage(result: jsonResult),
+            builder:
+                (context) => CrackResultPage(
+                  result: jsonResult,
+                  userName: widget.userName,
+                ),
           ),
         );
       } else {

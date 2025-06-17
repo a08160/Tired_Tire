@@ -6,21 +6,32 @@ class WelcomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF1A171D), // 배경색 (짙은 회색)
+      backgroundColor: Color(0xFF2C2B34), // 전체 배경 #2C2B34
       body: SafeArea(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Spacer(),
-            Image.asset(
-              'assets/car.png', // car 이미지 위치
-              width: 300,
+
+            // 자동차 이미지 (왼쪽 조금 자르고 전체 너비 채우기)
+            ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft, // 왼쪽을 기준으로 잘라냄
+                widthFactor: 1.2, // 1보다 크면 왼쪽이 잘림
+                child: Image.asset(
+                  'assets/car.png',
+                  width: double.infinity, // 가로 전체 채움
+                  fit: BoxFit.cover, // 잘 맞추도록 자름
+                ),
+              ),
             ),
+
             SizedBox(height: 30),
+
             Text(
               'Tired Tire',
               style: TextStyle(
-                color: Colors.white,
+                color: Color(0xFFFFFFFF), // 흰색 글자
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
               ),
@@ -28,9 +39,13 @@ class WelcomePage extends StatelessWidget {
             SizedBox(height: 10),
             Text(
               '당신의 타이어, 지금 Tired 하진 않나요?',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+              style: TextStyle(
+                color: Color(0xFFBFBFBF), // 연한 회색 글자
+                fontSize: 14,
+              ),
             ),
             SizedBox(height: 40),
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Column(
@@ -41,8 +56,6 @@ class WelcomePage extends StatelessWidget {
                         context,
                         MaterialPageRoute(builder: (context) => SignUpPage()),
                       );
-
-                      // 회원가입 페이지로 이동 (나중에 연결)
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -61,7 +74,6 @@ class WelcomePage extends StatelessWidget {
                         context,
                         MaterialPageRoute(builder: (context) => LoginPage()),
                       );
-                      // 로그인 페이지로 이동 (나중에 연결)
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white24,
@@ -76,6 +88,7 @@ class WelcomePage extends StatelessWidget {
                 ],
               ),
             ),
+
             Spacer(),
           ],
         ),

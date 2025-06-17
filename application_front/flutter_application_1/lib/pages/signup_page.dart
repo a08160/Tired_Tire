@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 
 class SignUpPage extends StatefulWidget {
@@ -11,122 +13,144 @@ class _SignUpPageState extends State<SignUpPage> {
   final _birthController = TextEditingController();
   final _phoneController = TextEditingController();
   final _nicknameController = TextEditingController();
-  final _authCodeController = TextEditingController();
+  final _emailController = TextEditingController();
 
-  String? _gender;
-  String? _carrier;
-  bool _showAuthField = false;
-  int _remainingSeconds = 0;
-  Timer? _timer;
+  bool _emailSent = false;
   bool _isAuthVerified = false;
+  bool _isSendingEmail = false;
+  Timer? _emailCheckTimer;
+  String? _gender;
 
-  final String _expectedAuthCode = "123456"; // 예시 인증번호
+  String _tempPassword = "TempPassword123!";
 
-  final List<String> _carrierOptions = [
-    'SKT',
-    'KT',
-    'LG U+',
-    'SKT 알뜰폰',
-    'KT 알뜰폰',
-    'LG U+ 알뜰폰',
-  ];
+  void _sendEmailVerification() async {
+    final email = _emailController.text.trim();
 
-  void _showCarrierPicker() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return ListView(
-          children:
-              _carrierOptions.map((carrier) {
-                return ListTile(
-                  title: Text(carrier),
-                  onTap: () {
-                    setState(() {
-                      _carrier = carrier;
-                    });
-                    Navigator.pop(context);
-                  },
-                );
-              }).toList(),
-        );
-      },
-    );
+    if (email.isEmpty) {
+      _showSnack('이메일을 입력해주세요.');
+      return;
+    }
+
+    setState(() => _isSendingEmail = true);
+
+    try {
+      final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(
+        email,
+      );
+
+      if (methods.isNotEmpty) {
+        _showSnack('이미 가입된 이메일입니다. 로그인하거나 다른 이메일을 입력하세요.');
+        setState(() => _isSendingEmail = false);
+        return;
+      }
+
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: email,
+            password: _tempPassword,
+          );
+
+      final user = userCredential.user!;
+      await user.sendEmailVerification();
+
+      setState(() {
+        _emailSent = true;
+        _isSendingEmail = false;
+      });
+
+      _startEmailVerificationCheck();
+
+      _showSnack('인증 이메일이 전송되었습니다. 이메일을 확인해주세요.');
+    } on FirebaseAuthException catch (e) {
+      _showSnack('이메일 전송 오류: ${e.message}');
+      setState(() => _isSendingEmail = false);
+    } catch (e) {
+      _showSnack('알 수 없는 오류가 발생했습니다.');
+      setState(() => _isSendingEmail = false);
+    }
   }
 
-  void _startAuthTimer() {
-    setState(() {
-      _showAuthField = true;
-      _remainingSeconds = 300;
-      _isAuthVerified = false;
-    });
-    _timer?.cancel();
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (_remainingSeconds > 0) {
-        setState(() {
-          _remainingSeconds--;
-        });
-      } else {
+  void _startEmailVerificationCheck() {
+    _emailCheckTimer?.cancel();
+    _emailCheckTimer = Timer.periodic(Duration(seconds: 3), (timer) async {
+      final user = FirebaseAuth.instance.currentUser;
+      await user?.reload();
+      if (user != null && user.emailVerified) {
         timer.cancel();
+        setState(() {
+          _isAuthVerified = true;
+        });
+        _showSnack('이메일 인증 완료!');
       }
     });
   }
 
-  void _verifyAuthCode() {
-    if (_authCodeController.text.trim() == _expectedAuthCode &&
-        _remainingSeconds > 0) {
-      setState(() {
-        _isAuthVerified = true;
+  Future<void> _saveUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'name': _nameController.text.trim(),
+        'email': user.email,
+        'gender': _gender ?? '',
+        'birth': _birthController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'nickname': _nicknameController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('인증 성공!')));
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('인증 실패. 인증번호를 다시 확인해주세요.')));
+    } catch (e) {
+      _showSnack('사용자 정보 저장 중 오류가 발생했습니다.');
     }
   }
 
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
-
-  void _showCompleteDialog() {
+  void _completeSignUp() async {
     if (_nameController.text.trim().isEmpty ||
         _gender == null ||
         _birthController.text.trim().length != 8 ||
-        _carrier == null ||
+        _emailController.text.trim().isEmpty ||
         _phoneController.text.trim().length < 10 ||
         _nicknameController.text.trim().isEmpty ||
         !_isAuthVerified) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('모든 필드를 올바르게 입력하고 인증을 완료해주세요.')));
+      _showSnack('모든 필드를 올바르게 입력하고 이메일 인증을 완료해주세요.');
       return;
     }
 
+    await _saveUserData();
+
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: Text(
-            '회원가입 완료! 로그인해주세요.',
-            style: TextStyle(color: Colors.black),
+      builder:
+          (_) => AlertDialog(
+            backgroundColor: Colors.white,
+            title: Text('회원가입 완료!'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                child: Text('확인'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-              child: Text('확인'),
-            ),
-          ],
-        );
-      },
     );
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _birthController.dispose();
+    _phoneController.dispose();
+    _nicknameController.dispose();
+    _emailController.dispose();
+    _emailCheckTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -179,112 +203,45 @@ class _SignUpPageState extends State<SignUpPage> {
               ),
               _buildInputField('생년월일 (예: 19900101)', _birthController),
               SizedBox(height: 16),
-              Text('통신사', style: TextStyle(color: Colors.white)),
-              GestureDetector(
-                onTap: _showCarrierPicker,
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                  margin: EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
+              _buildInputField('이메일', _emailController),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: _isSendingEmail ? null : _sendEmailVerification,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
+                ),
+                child:
+                    _isSendingEmail
+                        ? CircularProgressIndicator(color: Colors.black)
+                        : Text('인증 이메일 발송'),
+              ),
+              if (_emailSent && !_isAuthVerified)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Text(
-                    _carrier ?? '통신사를 선택하세요',
-                    style: TextStyle(
-                      color: _carrier == null ? Colors.white54 : Colors.white,
-                    ),
+                    '이메일 인증을 완료해주세요.',
+                    style: TextStyle(color: Colors.white70),
                   ),
                 ),
-              ),
-              SizedBox(height: 16),
-              Text('전화번호', style: TextStyle(color: Colors.white)),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _phoneController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white24,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
+              if (_isAuthVerified)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    '✅ 이메일 인증 완료',
+                    style: TextStyle(color: Colors.greenAccent),
                   ),
-                  SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _startAuthTimer,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: Text('인증번호 발송'),
-                  ),
-                ],
-              ),
-              if (_showAuthField) ...[
-                SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _authCodeController,
-                        style: TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white24,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          hintText:
-                              _remainingSeconds == 0
-                                  ? '제한시간 초과. 인증번호를 재발송해주세요'
-                                  : '인증 번호 입력',
-                          hintStyle: TextStyle(color: Colors.white54),
-                        ),
-                      ),
-                    ),
-                    if (_remainingSeconds > 0) ...[
-                      SizedBox(width: 10),
-                      Text(
-                        _formatTime(_remainingSeconds),
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
-                    TextButton(
-                      onPressed: _verifyAuthCode,
-                      child: Text('확인', style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
                 ),
-              ],
+              _buildInputField('전화번호', _phoneController),
               SizedBox(height: 16),
               _buildInputField('닉네임', _nicknameController),
               SizedBox(height: 30),
               ElevatedButton(
-                onPressed: _showCompleteDialog,
+                onPressed: _completeSignUp,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black,
@@ -309,6 +266,7 @@ class _SignUpPageState extends State<SignUpPage> {
         Text(label, style: TextStyle(color: Colors.white)),
         SizedBox(height: 8),
         TextField(
+          cursorColor: Colors.black,
           controller: controller,
           style: TextStyle(color: Colors.white),
           decoration: InputDecoration(
@@ -323,16 +281,5 @@ class _SignUpPageState extends State<SignUpPage> {
         ),
       ],
     );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _birthController.dispose();
-    _phoneController.dispose();
-    _nicknameController.dispose();
-    _authCodeController.dispose();
-    _timer?.cancel();
-    super.dispose();
   }
 }

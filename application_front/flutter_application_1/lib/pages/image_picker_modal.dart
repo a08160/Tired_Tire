@@ -7,6 +7,10 @@ import 'package:http/http.dart' as http;
 import 'diagnosis_result_page.dart';
 
 class ImagePickerModal extends StatefulWidget {
+  final String userName; // ✅ 추가
+
+  ImagePickerModal({required this.userName});
+
   @override
   State<ImagePickerModal> createState() => _ImagePickerModalState();
 }
@@ -31,7 +35,7 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
     _showLoading();
 
     try {
-      final uri = Uri.parse("http://192.168.10.17:8000/air");
+      final uri = Uri.parse("http://192.168.0.7:8000/air");
       final request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('file', imagePath));
 
@@ -50,6 +54,7 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
                 (context) => DiagnosisResultPage(
                   result: jsonResult,
                   imagePath: imagePath,
+                  userName: widget.userName, // 추가///////////////////
                 ),
           ),
         );

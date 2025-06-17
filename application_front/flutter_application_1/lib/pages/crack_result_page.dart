@@ -4,8 +4,9 @@ import 'home_page.dart';
 
 class CrackResultPage extends StatelessWidget {
   final Map<String, dynamic> result;
+  final String userName;
 
-  CrackResultPage({required this.result});
+  CrackResultPage({required this.result, required this.userName});
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +155,9 @@ class CrackResultPage extends StatelessWidget {
                   onPressed: () {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => HomePage()),
+                      MaterialPageRoute(
+                        builder: (context) => HomePage(userName: userName),
+                      ),
                       (route) => false,
                     );
                   },

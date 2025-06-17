@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -8,241 +9,128 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _phoneController = TextEditingController();
-  final _authCodeController = TextEditingController();
+  final _emailController = TextEditingController();
+  bool _isLoading = false;
 
-  String? _carrier;
-  bool _showAuthField = false;
-  int _remainingSeconds = 0;
-  Timer? _timer;
+  final String _tempPassword = 'TempPassword123!'; // 회원가입 때 사용한 임시 비밀번호
 
-  final String _expectedAuthCode = "123456";
-  final List<String> _carrierOptions = [
-    'SKT',
-    'KT',
-    'LG U+',
-    'SKT 알뜰폰',
-    'KT 알뜰폰',
-    'LG U+ 알뜰폰',
-  ];
+  Future<void> _login() async {
+    final email = _emailController.text.trim();
 
-  void _showCarrierPicker() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return ListView(
-          children:
-              _carrierOptions.map((carrier) {
-                return ListTile(
-                  title: Text(carrier),
-                  onTap: () {
-                    setState(() {
-                      _carrier = carrier;
-                    });
-                    Navigator.pop(context);
-                  },
-                );
-              }).toList(),
-        );
-      },
-    );
-  }
-
-  void _startAuthTimer() {
-    setState(() {
-      _showAuthField = true;
-      _remainingSeconds = 300;
-    });
-    _timer?.cancel();
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (_remainingSeconds > 0) {
-        setState(() {
-          _remainingSeconds--;
-        });
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-
-  void _verifyAndLogin() {
-    if (_carrier == null ||
-        _phoneController.text.trim().isEmpty ||
-        _authCodeController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('모든 항목을 입력해주세요.')));
+    if (email.isEmpty) {
+      _showSnack('이메일을 입력해주세요.');
       return;
     }
-    if (_authCodeController.text.trim() == _expectedAuthCode &&
-        _remainingSeconds > 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('로그인 성공!')));
+
+    setState(() => _isLoading = true);
+
+    try {
+      // FirebaseAuth 로그인 시도
+      final userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: _tempPassword);
+
+      final user = userCredential.user;
+
+      if (user == null || !user.emailVerified) {
+        _showSnack('이메일 인증을 완료한 계정으로 로그인해주세요.');
+        return;
+      }
+
+      // Firestore에서 사용자 이름 불러오기
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+      if (!userDoc.exists) {
+        _showSnack('회원 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      final userName = userDoc['name'] ?? '사용자';
+
+      _showSnack('로그인 성공!');
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => HomePage()),
+        MaterialPageRoute(builder: (context) => HomePage(userName: userName)),
       );
-      // TODO: 홈 페이지로 이동 또는 상태 변경
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('인증번호가 올바르지 않거나 시간이 초과되었습니다.')));
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        _showSnack('가입된 계정을 찾을 수 없습니다.');
+      } else if (e.code == 'wrong-password') {
+        _showSnack('비밀번호가 잘못되었습니다.');
+      } else {
+        _showSnack('로그인 오류: ${e.message}');
+      }
+    } catch (e) {
+      _showSnack('알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF1A171D),
+      backgroundColor: Color(0xFF2C2B34),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('로그인', style: TextStyle(fontWeight: FontWeight.bold)),
+        iconTheme: IconThemeData(color: Colors.white),
+        title: SizedBox.shrink(),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('통신사', style: TextStyle(color: Colors.white)),
-              GestureDetector(
-                onTap: _showCarrierPicker,
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                  margin: EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Text(
-                    _carrier ?? '통신사를 선택하세요',
-                    style: TextStyle(
-                      color: _carrier == null ? Colors.white54 : Colors.white,
-                    ),
-                  ),
+        child: Column(
+          children: [
+            TextField(
+              cursorColor: Colors.grey,
+              controller: _emailController,
+              style: TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: '이메일',
+                labelStyle: TextStyle(color: Colors.white70),
+                filled: true,
+                fillColor: Colors.white24,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
                 ),
               ),
-              SizedBox(height: 16),
-              Text('전화번호', style: TextStyle(color: Colors.white)),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _phoneController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white24,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _startAuthTimer,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: Text('인증번호 발송'),
-                  ),
-                ],
-              ),
-              if (_showAuthField) ...[
-                SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _authCodeController,
-                        style: TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white24,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          hintText:
-                              _remainingSeconds == 0
-                                  ? '제한시간 초과. 인증번호를 재발송해주세요'
-                                  : '인증 번호 입력',
-                          hintStyle: TextStyle(color: Colors.white54),
-                        ),
-                      ),
-                    ),
-                    if (_remainingSeconds > 0) ...[
-                      SizedBox(width: 10),
-                      Text(
-                        _formatTime(_remainingSeconds),
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
-                    TextButton(
-                      onPressed: _verifyAndLogin,
-                      child: Text('확인', style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
+              keyboardType: TextInputType.emailAddress,
+            ),
+            SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _login,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                minimumSize: Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
-              ],
-              SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => HomePage()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  minimumSize: Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: Text('로그인'),
               ),
-            ],
-          ),
+              child:
+                  _isLoading
+                      ? CircularProgressIndicator(color: Colors.black)
+                      : Text('로그인'),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _authCodeController.dispose();
-    _timer?.cancel();
-    super.dispose();
   }
 }

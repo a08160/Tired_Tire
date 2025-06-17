@@ -3,6 +3,10 @@ import 'image_picker_modal.dart';
 import 'crack_image_modal.dart';
 
 class DiagnosisMenuPage extends StatefulWidget {
+  final String userName; // ✅ 추가
+
+  DiagnosisMenuPage({required this.userName});
+
   @override
   _DiagnosisMenuPageState createState() => _DiagnosisMenuPageState();
 }
@@ -23,9 +27,9 @@ class _DiagnosisMenuPageState extends State<DiagnosisMenuPage> {
     // 기능 분기 처리
     Widget modal;
     if (selectedFunction == '타이어 공기압 진단') {
-      modal = ImagePickerModal();
+      modal = ImagePickerModal(userName: widget.userName);
     } else if (selectedFunction == '타이어 균열 진단') {
-      modal = CrackImageModal(); // ✅ 균열 진단용 새 모달로 분기
+      modal = CrackImageModal(userName: widget.userName); // ✅ 균열 진단용 새 모달로 분기
     } else {
       modal = Container(); // 혹시 모를 fallback
     }

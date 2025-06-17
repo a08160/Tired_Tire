@@ -38,22 +38,15 @@ class _CarPageState extends State<CarPage> {
       List<Car> cars = [];
       for (int i = 1; i < listData.length; i++) {
         final row = listData[i];
-        if (row.length >= 3) {
-          String rawUrl = row[2].toString();
-          String imageUrl = rawUrl;
-          try {
-            final uri = Uri.parse(rawUrl);
-            final srcParam = uri.queryParameters['src'];
-            if (srcParam != null && srcParam.isNotEmpty) {
-              imageUrl = Uri.decodeComponent(srcParam);
-            }
-          } catch (_) {}
+        if (row.length >= 2) {
+          final model = row[0].toString();
+          final efficiency = row[1].toString();
+
+          final imageFileName = model; // 공백 그대로 유지
+          final assetImagePath = 'assets/car_images/$imageFileName.jpg';
+
           cars.add(
-            Car(
-              model: row[0].toString(),
-              efficiency: row[1].toString(),
-              imageUrl: imageUrl,
-            ),
+            Car(model: model, efficiency: efficiency, imageUrl: assetImagePath),
           );
         }
       }
@@ -226,9 +219,7 @@ class _CarPageState extends State<CarPage> {
                                 SnackBar(content: Text('차량이 성공적으로 등록되었습니다.')),
                               );
 
-                              Navigator.of(
-                                context,
-                              ).pop(carData); // 등록 완료 후 데이터 반환
+                              Navigator.of(context).pop(carData);
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('등록 실패: $e')),
@@ -282,10 +273,10 @@ class _CarPageState extends State<CarPage> {
             .toList();
 
     return Scaffold(
-      backgroundColor: Colors.white, // 전체 배경 완전 흰색으로 변경
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, // AppBar 배경 투명
-        elevation: 0, // 그림자 제거
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
@@ -344,7 +335,7 @@ class _CarPageState extends State<CarPage> {
                                 children: [
                                   AspectRatio(
                                     aspectRatio: 16 / 9,
-                                    child: Image.network(
+                                    child: Image.asset(
                                       car.imageUrl,
                                       fit: BoxFit.contain,
                                       errorBuilder:

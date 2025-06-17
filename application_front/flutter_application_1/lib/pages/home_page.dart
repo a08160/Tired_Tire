@@ -315,7 +315,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildCarSection() {
     return SizedBox(
-      height: 220,
+      height: 240,
       child:
           _selectedCars.isEmpty
               ? GestureDetector(
@@ -353,7 +353,7 @@ class _HomePageState extends State<HomePage> {
                     return GestureDetector(
                       onTap: _addCar,
                       child: Container(
-                        margin: EdgeInsets.symmetric(horizontal: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(16),
@@ -395,23 +395,29 @@ class _HomePageState extends State<HomePage> {
                                         Icon(Icons.image_not_supported),
                               ),
                             ),
-                            SizedBox(height: 12),
+                            SizedBox(height: 6),
                             Text(
                               car.model,
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            SizedBox(height: 2),
                             Text(
                               car.efficiency,
-                              style: TextStyle(color: Colors.black54),
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 12,
+                              ),
                             ),
-                            SizedBox(height: 4),
+                            SizedBox(height: 2),
                             Text(
                               '타이어가 정상입니다.',
-                              style: TextStyle(color: Colors.redAccent),
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),

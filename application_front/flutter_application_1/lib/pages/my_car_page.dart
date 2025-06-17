@@ -342,7 +342,7 @@ class _MyCarPageState extends State<MyCarPage> {
                               ],
                             ),
                             Image.asset(
-                              'assets/images/car_placeholder.png',
+                              'assets/car_images/${car.model}.jpg',
                               width: 120,
                             ),
                           ],

@@ -210,7 +210,7 @@ class _HomePageState extends State<HomePage> {
       endDrawer: _buildDrawer(),
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: Container(),
         actions: [

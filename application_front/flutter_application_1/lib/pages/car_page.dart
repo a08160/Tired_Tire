@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:csv/csv.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Car {
   final String model;
@@ -196,7 +197,15 @@ class _CarPageState extends State<CarPage> {
                               return;
                             }
 
-                            final userId = 't9bvNqNveIQ5xtiTkrfxOJRHbEY2';
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('로그인이 필요합니다.')),
+                              );
+                              return;
+                            }
+                            final userId = user.uid;
+
                             final carData = {
                               'model': car.model,
                               'efficiency': car.efficiency,
@@ -211,7 +220,7 @@ class _CarPageState extends State<CarPage> {
                               await FirebaseFirestore.instance
                                   .collection('users')
                                   .doc(userId)
-                                  .collection('cars')
+                                  .collection('cars') // 🔥 각 유저의 cars 하위 컬렉션
                                   .add(carData);
 
                               if (!mounted) return;
@@ -275,7 +284,7 @@ class _CarPageState extends State<CarPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.black87),

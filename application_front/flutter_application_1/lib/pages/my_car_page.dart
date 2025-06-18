@@ -301,6 +301,7 @@ class _MyCarPageState extends State<MyCarPage> {
         title: Text('내 차 관리', style: TextStyle(color: Color(0xFF282931))),
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.grey),
+        scrolledUnderElevation: 0,
       ),
       body:
           isLoading

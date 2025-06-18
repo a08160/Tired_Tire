@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:csv/csv.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Car {
   final String model;
@@ -203,7 +204,15 @@ class _CarPageState extends State<CarPage> {
                               return;
                             }
 
-                            final userId = 't9bvNqNveIQ5xtiTkrfxOJRHbEY2';
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('로그인이 필요합니다.')),
+                              );
+                              return;
+                            }
+                            final userId = user.uid;
+
                             final carData = {
                               'model': car.model,
                               'efficiency': car.efficiency,
@@ -226,9 +235,7 @@ class _CarPageState extends State<CarPage> {
                                 SnackBar(content: Text('차량이 성공적으로 등록되었습니다.')),
                               );
 
-                              Navigator.of(
-                                context,
-                              ).pop(carData); // 등록 완료 후 데이터 반환
+                              Navigator.of(context).pop(carData);
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('등록 실패: $e')),

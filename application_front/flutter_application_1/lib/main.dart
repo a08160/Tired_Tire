@@ -2,7 +2,8 @@
 // uvicorn inference_server:app --host 0.0.0.0 --port 8000 --reload
 // uvicorn crack_inference_server:app --host 0.0.0.0 --port 8001 --reload
 // image_picker_modal.dart & crack_inference_server.py & crack_image_modal 에서 ip주소 변경(ipconfig)
-
+// 코딩온 교육장 192.168.10.11
+// 르하임 스터디카페 192.168.0.7
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';

@@ -35,7 +35,7 @@ class _ImagePickerModalState extends State<ImagePickerModal> {
     _showLoading();
 
     try {
-      final uri = Uri.parse("http://192.168.0.7:8000/air");
+      final uri = Uri.parse("http://192.168.10.11:8000/air");
       final request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('file', imagePath));
 

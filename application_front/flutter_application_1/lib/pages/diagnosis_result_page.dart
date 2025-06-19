@@ -1,8 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'home_page.dart';
+import 'package:flutter_application_1/services/diagnosis_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class DiagnosisResultPage extends StatelessWidget {
+class DiagnosisResultPage extends StatefulWidget {
   final Map<String, dynamic> result;
   final String imagePath;
   final String userName; // ✅ 추가
@@ -14,8 +17,120 @@ class DiagnosisResultPage extends StatelessWidget {
   });
 
   @override
+  State<DiagnosisResultPage> createState() => _DiagnosisResultPageState();
+}
+
+class _DiagnosisResultPageState extends State<DiagnosisResultPage> {
+  void _showSaveDialog(
+    BuildContext context,
+    double airPct,
+    String status,
+    String comment,
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final carsSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('cars')
+            .get();
+
+    final carDocs = carsSnapshot.docs;
+
+    String? selectedCarId;
+    String? selectedWheel;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text("차량과 타이어 위치 선택"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButton<String>(
+                    value: selectedCarId,
+                    hint: Text("차량을 선택해주세요"),
+                    items:
+                        carDocs.map((doc) {
+                          final model = doc['model'];
+                          final plate = doc['plate'];
+                          return DropdownMenuItem<String>(
+                            value: doc.id,
+                            child: Text("$model ($plate)"),
+                          );
+                        }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedCarId = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    children:
+                        ["좌측 앞바퀴", "우측 앞바퀴", "좌측 뒷바퀴", "우측 뒷바퀴"].map((pos) {
+                          final isSelected = pos == selectedWheel;
+                          return ChoiceChip(
+                            label: Text(pos),
+                            selected: isSelected,
+                            onSelected:
+                                (_) => setState(() => selectedWheel = pos),
+                          );
+                        }).toList(),
+                  ),
+                  if (selectedWheel != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text("선택된 위치: $selectedWheel"),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("취소"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (selectedCarId == null || selectedWheel == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("차량과 위치를 모두 선택해주세요.")),
+                      );
+                      return;
+                    }
+
+                    await saveDiagnosisResult(
+                      carId: selectedCarId!,
+                      airPct: airPct,
+                      status: status,
+                      wheelPosition: selectedWheel!,
+                      comment: comment,
+                    );
+
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text("결과가 저장되었습니다.")));
+                  },
+                  child: Text("저장"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    double airPct = (result['air_pct'] ?? 0).toDouble();
+    double airPct = (widget.result['air_pct'] ?? 0).toDouble();
     int score = airPct.round();
 
     // 상태 판정
@@ -135,10 +250,14 @@ class DiagnosisResultPage extends StatelessWidget {
               children: [
                 ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: 결과 저장 기능 나중에 구현
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text('저장 기능 준비 중')));
+                    final double airPct =
+                        (widget.result['air_pct'] ?? 0).toDouble();
+                    final int score = airPct.round();
+                    final String status =
+                        score >= 80 ? "양호" : (score >= 60 ? "주의" : "위험");
+                    final String comment = _generateAIComment(score);
+
+                    _showSaveDialog(context, airPct, status, comment);
                   },
                   icon: Icon(Icons.save_alt),
                   label: Text("결과 저장"),
@@ -173,7 +292,8 @@ class DiagnosisResultPage extends StatelessWidget {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => HomePage(userName: userName),
+                        builder:
+                            (context) => HomePage(userName: widget.userName),
                       ),
                       (route) => false,
                     );
@@ -201,7 +321,7 @@ class DiagnosisResultPage extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Image.file(
-        File(imagePath),
+        File(widget.imagePath),
         width: 180,
         height: 180,
         fit: BoxFit.cover,

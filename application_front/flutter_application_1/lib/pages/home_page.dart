@@ -4,8 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'car_page.dart';
 import 'profile_page.dart';
 import 'my_car_page.dart';
-// import 'package:flutter_application_1/pages/service_center_page.dart';
+import 'package:flutter_application_1/pages/service_center_page.dart';
 import 'diagnosis_menu_page.dart';
+import 'package:flutter_application_1/pages/tire_history_page.dart';
 
 class Car {
   final String model;
@@ -67,10 +68,181 @@ class _HomePageState extends State<HomePage> {
   int _currentPage = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  String _two(int n) => n.toString().padLeft(2, '0');
+
   @override
   void initState() {
     super.initState();
     _loadUserCars();
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case '양호':
+        return Colors.green;
+      case '주의':
+        return Colors.orange;
+      case '위험':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildRecentDiagnosisWidget() {
+    if (_selectedCars.isEmpty) return SizedBox.shrink();
+
+    // 🔐 보호: currentPage가 selectedCars 길이보다 크면 마지막 인덱스로 보정
+    final safeIndex =
+        _currentPage >= _selectedCars.length
+            ? _selectedCars.length - 1
+            : _currentPage;
+
+    final currentCar = _selectedCars[safeIndex];
+    final carId = currentCar.docId;
+
+    if (carId == null) return SizedBox.shrink();
+
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchRecentDiagnosis(carId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 160,
+            alignment: Alignment.center,
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        final data = snapshot.data ?? [];
+
+        return Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '최근 타이어 진단 내역',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.arrow_forward_ios, size: 16),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => TireHistoryPage()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              if (data.isEmpty)
+                Text("최근 진단 내역이 없습니다.")
+              else
+                Column(
+                  children:
+                      data.map((item) {
+                        final dt = item['createdAt'] as DateTime;
+                        final dateStr =
+                            "${dt.year % 100}.${_two(dt.month)}.${_two(dt.day)} ${_two(dt.hour)}:${_two(dt.minute)}";
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            children: [
+                              Text(
+                                item['wheelPosition'],
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(width: 8),
+                              Text(item['type']),
+                              Spacer(),
+                              Text(
+                                item['status'],
+                                style: TextStyle(
+                                  color: _statusColor(item['status']),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                dateStr,
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchRecentDiagnosis(String carId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
+
+    final airSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('cars')
+            .doc(carId)
+            .collection('air')
+            .orderBy('createdAt', descending: true)
+            .limit(2)
+            .get();
+
+    final crackSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('cars')
+            .doc(carId)
+            .collection('crack')
+            .orderBy('createdAt', descending: true)
+            .limit(2)
+            .get();
+
+    final airRecords = airSnapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'type': '공기압',
+        'createdAt': (data['createdAt'] as Timestamp).toDate(),
+        'wheelPosition': data['wheelPosition'] ?? '',
+        'status': data['status'] ?? '',
+      };
+    });
+
+    final crackRecords = crackSnapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'type': '균열',
+        'createdAt': (data['createdAt'] as Timestamp).toDate(),
+        'wheelPosition': data['wheelPosition'] ?? '',
+        'status': data['status'] ?? '',
+      };
+    });
+
+    final all = [...airRecords, ...crackRecords];
+
+    all.sort(
+      (a, b) =>
+          (b['createdAt'] as DateTime).compareTo(a['createdAt'] as DateTime),
+    );
+
+    return all.take(2).toList();
   }
 
   Future<void> _loadUserCars() async {
@@ -230,8 +402,11 @@ class _HomePageState extends State<HomePage> {
           children: [
             _buildCarSection(),
             SizedBox(height: 24),
-            _buildDashboard(),
-            SizedBox(height: 24),
+            // 추가할 부분:
+            _buildRecentDiagnosisWidget(), // 대시보드 대신 이거 삽입
+
+            SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
@@ -256,10 +431,10 @@ class _HomePageState extends State<HomePage> {
                     '정비소 찾기',
                     Icons.location_on,
                     onTap: () {
-                      // Navigator.push(
-                      //   context,
-                      //   MaterialPageRoute(builder: (_) => ServiceCenterPage()),
-                      // );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ServiceCenterPage()),
+                      );
                     },
                   ),
                 ),
@@ -323,7 +498,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildCarSection() {
     return SizedBox(
-      height: 220,
+      height: 250,
       child:
           _selectedCars.isEmpty
               ? GestureDetector(
@@ -436,48 +611,6 @@ class _HomePageState extends State<HomePage> {
                   );
                 },
               ),
-    );
-  }
-
-  Widget _buildDashboard() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('내 차량 대시보드', style: TextStyle(color: Colors.white)),
-          SizedBox(height: 12),
-          _dashboardItem('2024년 4월 20일', '> 120km'),
-          SizedBox(height: 12),
-          _dashboardItem('2025년 1월 3일', '> 2641km'),
-        ],
-      ),
-    );
-  }
-
-  Widget _dashboardItem(String date, String distance) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              date,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(distance, style: TextStyle(color: Colors.white60)),
-          ],
-        ),
-        Icon(Icons.arrow_forward, color: Colors.white),
-      ],
     );
   }
 

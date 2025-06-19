@@ -131,9 +131,9 @@ def visualize_crack_classes_transparent(image, crack_areas, labels, min_area=20)
         risk_score = 100-round(risk_score, 2)
 
     # 등급 산정
-    if risk_score >= 80:
+    if risk_score >= 70:
         grade = "양호"
-    elif risk_score >= 60:
+    elif risk_score >= 35:
         grade = "주의"
     else:
         grade = "위험"

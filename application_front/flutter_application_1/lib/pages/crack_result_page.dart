@@ -136,13 +136,13 @@ class _CrackResultPageState extends State<CrackResultPage> {
     String commentText;
     IconData statusIcon;
 
-    if (score >= 80) {
+    if (score >= 70) {
       statusText = "양호";
       statusColor = Color(0xFF22C55E);
       bgColor = Color(0xFFE6F4E9);
       commentText = "균열이 거의 없어요!";
       statusIcon = Icons.verified;
-    } else if (score >= 60) {
+    } else if (score >= 35) {
       statusText = "주의";
       statusColor = Color(0xFFFACC15);
       bgColor = Color(0xFFFFF7E0);
@@ -242,7 +242,7 @@ class _CrackResultPageState extends State<CrackResultPage> {
                         (widget.result['risk_score'] ?? 0).toDouble();
                     final int score = riskScore.round();
                     final String status =
-                        score >= 80 ? "양호" : (score >= 60 ? "주의" : "위험");
+                        score >= 70 ? "양호" : (score >= 35 ? "주의" : "위험");
                     final String comment = _generateAIComment(score);
                     final String imageUrl =
                         widget.result['blended_image_url'] ?? '';
@@ -383,9 +383,9 @@ class _CrackResultPageState extends State<CrackResultPage> {
   }
 
   String _generateAIComment(int score) {
-    if (score >= 80) {
+    if (score >= 70) {
       return "균열 위험도가 ${score}점으로 매우 양호한 상태입니다.";
-    } else if (score >= 60) {
+    } else if (score >= 35) {
       return "균열 위험도가 ${score}점으로 약간의 균열이 발견되었습니다.";
     } else {
       return "균열 위험도가 ${score}점으로 심각한 균열이 있습니다. 즉시 점검이 필요합니다.";

@@ -22,7 +22,10 @@ class Car {
       docId: docId,
       plate: data['plate'] ?? '',
       model: data['model'] ?? '',
-      mileage: data['mileage'] ?? 0,
+      mileage:
+          data['mileage'] is int
+              ? data['mileage']
+              : int.tryParse(data['mileage']?.toString() ?? '0') ?? 0,
       tireDate: data['tireDate'] ?? '',
     );
   }
@@ -59,20 +62,37 @@ class _MyCarPageState extends State<MyCarPage> {
       return;
     }
 
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('cars')
-            .get();
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('cars')
+              .get();
 
-    final loadedCars =
-        snapshot.docs.map((doc) => Car.fromMap(doc.data(), doc.id)).toList();
+      final loadedCars =
+          snapshot.docs
+              .map((doc) {
+                try {
+                  return Car.fromMap(doc.data(), doc.id);
+                } catch (e) {
+                  print('[🚨 Car.fromMap 오류] 문서: ${doc.id}, 에러: $e');
+                  return null;
+                }
+              })
+              .whereType<Car>()
+              .toList();
 
-    setState(() {
-      cars = loadedCars;
-      isLoading = false;
-    });
+      setState(() {
+        cars = loadedCars;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('[🚨 Firestore 전체 실패] 에러: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   void _showEditDialog(BuildContext context, Car car) {
@@ -342,7 +362,7 @@ class _MyCarPageState extends State<MyCarPage> {
                               ],
                             ),
                             Image.asset(
-                              'assets/images/car_placeholder.png',
+                              'assets/car_placeholder.png',
                               width: 120,
                             ),
                           ],

@@ -64,17 +64,19 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.9);
+    _loadUserCars();
+  }
+
   List<Car> _selectedCars = [];
   int _currentPage = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   String _two(int n) => n.toString().padLeft(2, '0');
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserCars();
-  }
+  late PageController _pageController;
 
   Color _statusColor(String status) {
     switch (status) {
@@ -135,11 +137,28 @@ class _HomePageState extends State<HomePage> {
                   Spacer(),
                   IconButton(
                     icon: Icon(Icons.arrow_forward_ios, size: 16),
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final returnedCarId = await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => TireHistoryPage()),
+                        MaterialPageRoute(
+                          builder:
+                              (_) => TireHistoryPage(
+                                selectedCarId: currentCar.docId,
+                              ), // ✅ 이렇게 넘김
+                        ),
                       );
+
+                      if (returnedCarId != null && mounted) {
+                        final index = _selectedCars.indexWhere(
+                          (car) => car.docId == returnedCarId,
+                        );
+                        if (index != -1) {
+                          setState(() {
+                            _currentPage = index;
+                          });
+                          _pageController.jumpToPage(index); // 🔥 강제 이동
+                        }
+                      }
                     },
                   ),
                 ],
@@ -526,10 +545,7 @@ class _HomePageState extends State<HomePage> {
               )
               : PageView.builder(
                 itemCount: _selectedCars.length + 1,
-                controller: PageController(
-                  viewportFraction: 0.9,
-                  initialPage: _currentPage,
-                ),
+                controller: _pageController, // ✅ 우리가 선언한 컨트롤러 사용
                 onPageChanged: (index) => setState(() => _currentPage = index),
                 itemBuilder: (context, index) {
                   if (index == _selectedCars.length) {

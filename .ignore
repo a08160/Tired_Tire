@@ -7,15 +7,12 @@ uploads/
 # 민감정보
 **/firebase_options.dart
 **/google-services.json
-firebase.json
+**/firebase.json
 
 # 빌드 아티팩트
 **/generated-*
 **/build.gradle.kts
 **/settings.gradle.kts
-
-# Flutter 패키지 관리 파일
-pubspec.lock
 
 # 특정 웹 빌드 결과 (선택사항)
 application_front/flutter_application_1/web/index.html

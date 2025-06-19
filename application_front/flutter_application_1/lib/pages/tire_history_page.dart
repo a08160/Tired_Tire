@@ -23,6 +23,9 @@ class DiagnosisRecord {
 }
 
 class TireHistoryPage extends StatefulWidget {
+  final String? selectedCarId; // ← 추가
+  const TireHistoryPage({Key? key, this.selectedCarId}) : super(key: key);
+
   @override
   _TireHistoryPageState createState() => _TireHistoryPageState();
 }
@@ -43,7 +46,12 @@ class _TireHistoryPageState extends State<TireHistoryPage> {
   @override
   void initState() {
     super.initState();
-    _loadUserAndCars();
+    _loadUserAndCars().then((_) {
+      if (widget.selectedCarId != null) {
+        selectedCarId = widget.selectedCarId; // 💡 먼저 직접 설정
+        _loadDiagnosisRecords(); // 💡 진단내역 바로 불러오기
+      }
+    });
   }
 
   void _confirmDeleteDialog() {
@@ -202,48 +210,54 @@ class _TireHistoryPageState extends State<TireHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("진단 내역"),
-        actions: [
-          if (records.isNotEmpty)
-            IconButton(
-              icon: Icon(selectMode ? Icons.cancel : Icons.check_box),
-              onPressed: () {
-                setState(() {
-                  selectMode = !selectMode;
-                  selectedIds.clear();
-                });
-              },
-            ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (nickname != null)
-              Text(
-                "$nickname 님의 진단내역",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, selectedCarId); // 선택된 차량 ID를 HomePage로 전달
+        return false; // 시스템 뒤로가기 막고 직접 pop 처리
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("진단 내역"),
+          actions: [
+            if (records.isNotEmpty)
+              IconButton(
+                icon: Icon(selectMode ? Icons.cancel : Icons.check_box),
+                onPressed: () {
+                  setState(() {
+                    selectMode = !selectMode;
+                    selectedIds.clear();
+                  });
+                },
               ),
-            SizedBox(height: 12),
-            _buildCarDropdown(),
-            SizedBox(height: 12),
-            _buildSortAndFilter(),
-            Expanded(child: _buildDiagnosisList()),
           ],
         ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (nickname != null)
+                Text(
+                  "$nickname 님의 진단내역",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              SizedBox(height: 12),
+              _buildCarDropdown(),
+              SizedBox(height: 12),
+              _buildSortAndFilter(),
+              Expanded(child: _buildDiagnosisList()),
+            ],
+          ),
+        ),
+        floatingActionButton:
+            selectMode && selectedIds.isNotEmpty
+                ? FloatingActionButton(
+                  onPressed: () => _confirmDeleteDialog(),
+                  backgroundColor: Colors.red,
+                  child: Icon(Icons.delete),
+                )
+                : null,
       ),
-      floatingActionButton:
-          selectMode && selectedIds.isNotEmpty
-              ? FloatingActionButton(
-                onPressed: () => _confirmDeleteDialog(),
-                backgroundColor: Colors.red,
-                child: Icon(Icons.delete),
-              )
-              : null,
     );
   }
 

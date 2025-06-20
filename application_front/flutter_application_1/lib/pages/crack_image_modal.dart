@@ -35,7 +35,7 @@ class _CrackImageModalState extends State<CrackImageModal> {
     _showLoading();
 
     try {
-      final uri = Uri.parse("http://192.168.10.11:8001/crack");
+      final uri = Uri.parse("http://192.168.0.37:8001/crack");
       final request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('file', imagePath));
 

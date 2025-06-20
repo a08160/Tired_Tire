@@ -13,6 +13,8 @@ class Car {
   Car({required this.model, required this.efficiency, required this.imageUrl});
 }
 
+enum WheelPosition { leftFront, leftRear, rightFront, rightRear }
+
 class CarPage extends StatefulWidget {
   @override
   _CarPageState createState() => _CarPageState();
@@ -21,6 +23,14 @@ class CarPage extends StatefulWidget {
 class _CarPageState extends State<CarPage> {
   List<Car> _cars = [];
   String _searchQuery = '';
+
+  WheelPosition? _selectedWheel;
+  Map<WheelPosition, String> _tireDates = {
+    WheelPosition.leftFront: '',
+    WheelPosition.leftRear: '',
+    WheelPosition.rightFront: '',
+    WheelPosition.rightRear: '',
+  };
 
   @override
   void initState() {
@@ -130,8 +140,14 @@ class _CarPageState extends State<CarPage> {
   void _showInputPlateDialog(Car car) {
     final plateController = TextEditingController();
     final mileageController = TextEditingController();
-    final tireDateController = TextEditingController();
 
+    // ✅ 여기에 추가
+    final Map<WheelPosition, TextEditingController> tireControllers = {
+      WheelPosition.leftFront: TextEditingController(),
+      WheelPosition.leftRear: TextEditingController(),
+      WheelPosition.rightFront: TextEditingController(),
+      WheelPosition.rightRear: TextEditingController(),
+    };
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -146,115 +162,276 @@ class _CarPageState extends State<CarPage> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '정보를 입력하세요.',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 16),
-                  TextField(
-                    controller: plateController,
-                    cursorColor: Colors.black,
-                    decoration: _inputDecoration('차량번호 입력'),
-                  ),
-                  SizedBox(height: 12),
-                  TextField(
-                    controller: mileageController,
-                    cursorColor: Colors.black,
-                    keyboardType: TextInputType.number,
-                    decoration: _inputDecoration('주행거리 입력 (km)'),
-                  ),
-                  SizedBox(height: 12),
-                  TextField(
-                    controller: tireDateController,
-                    cursorColor: Colors.black,
-                    decoration: _inputDecoration('타이어 제조일자 입력 (예: 2023-05-01)'),
-                  ),
-                  SizedBox(height: 20),
-                  Row(
+
+            child: StatefulBuilder(
+              // ✅ 핵심 변경: StatefulBuilder 추가
+              builder: (context, setState) {
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFE8E8E8),
-                            foregroundColor: Color(0xFF666666),
-                          ),
-                          child: Text('취소'),
+                      Text(
+                        '정보를 입력하세요.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final plate = plateController.text.trim();
-                            final mileage = mileageController.text.trim();
-                            final tireDate = tireDateController.text.trim();
-
-                            if (plate.isEmpty ||
-                                mileage.isEmpty ||
-                                tireDate.isEmpty ||
-                                int.tryParse(mileage) == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('입력값을 다시 확인해주세요.')),
-                              );
-                              return;
-                            }
-
-                            final user = FirebaseAuth.instance.currentUser;
-                            if (user == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('로그인이 필요합니다.')),
-                              );
-                              return;
-                            }
-                            final userId = user.uid;
-
-                            final carData = {
-                              'model': car.model,
-                              'efficiency': car.efficiency,
-                              'imageUrl': car.imageUrl,
-                              'plate': plate,
-                              'mileage': int.parse(mileage),
-                              'tireDate': tireDate,
-                              'createdAt': FieldValue.serverTimestamp(),
-                            };
-
-                            try {
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(userId)
-                                  .collection('cars')
-                                  .add(carData);
-
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('차량이 성공적으로 등록되었습니다.')),
-                              );
-
-                              Navigator.of(context).pop(carData);
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('등록 실패: $e')),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF282931),
-                          ),
-                          child: Text(
-                            '등록',
-                            style: TextStyle(color: Colors.white),
-                          ),
+                      SizedBox(height: 16),
+                      TextField(
+                        controller: plateController,
+                        cursorColor: Colors.black,
+                        decoration: _inputDecoration('차량번호 입력'),
+                      ),
+                      SizedBox(height: 12),
+                      TextField(
+                        controller: mileageController,
+                        cursorColor: Colors.black,
+                        keyboardType: TextInputType.number,
+                        decoration: _inputDecoration('주행거리 입력 (km)'),
+                      ),
+                      SizedBox(height: 12),
+                      Container(
+                        height: 200,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/car_top_view.png',
+                              fit: BoxFit.contain,
+                            ),
+                            Positioned(
+                              top: 30,
+                              left: 10,
+                              child: GestureDetector(
+                                onTap:
+                                    () => setState(
+                                      () =>
+                                          _selectedWheel =
+                                              WheelPosition.leftFront,
+                                    ),
+                                child: Image.asset(
+                                  _selectedWheel == WheelPosition.leftFront
+                                      ? 'assets/tire_blue.png'
+                                      : 'assets/tire_black.png',
+                                  width: 50,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 30,
+                              left: 10,
+                              child: GestureDetector(
+                                onTap:
+                                    () => setState(
+                                      () =>
+                                          _selectedWheel =
+                                              WheelPosition.leftRear,
+                                    ),
+                                child: Image.asset(
+                                  _selectedWheel == WheelPosition.leftRear
+                                      ? 'assets/tire_blue.png'
+                                      : 'assets/tire_black.png',
+                                  width: 50,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 30,
+                              right: 10,
+                              child: GestureDetector(
+                                onTap:
+                                    () => setState(
+                                      () =>
+                                          _selectedWheel =
+                                              WheelPosition.rightFront,
+                                    ),
+                                child: Image.asset(
+                                  _selectedWheel == WheelPosition.rightFront
+                                      ? 'assets/tire_blue.png'
+                                      : 'assets/tire_black.png',
+                                  width: 50,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 30,
+                              right: 10,
+                              child: GestureDetector(
+                                onTap:
+                                    () => setState(
+                                      () =>
+                                          _selectedWheel =
+                                              WheelPosition.rightRear,
+                                    ),
+                                child: Image.asset(
+                                  _selectedWheel == WheelPosition.rightRear
+                                      ? 'assets/tire_blue.png'
+                                      : 'assets/tire_black.png',
+                                  width: 50,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
+                      SizedBox(height: 16),
+                      if (_selectedWheel != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '선택된 바퀴: ${_selectedWheel.toString().split('.').last}',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 8),
+                            InkWell(
+                              onTap: () async {
+                                DateTime? picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: DateTime.now(),
+                                  firstDate: DateTime(2015),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (picked != null) {
+                                  String formatted =
+                                      "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                  setState(() {
+                                    tireControllers[_selectedWheel!]!.text =
+                                        formatted;
+                                    _tireDates[_selectedWheel!] = formatted;
+                                  });
+                                }
+                              },
+                              child: IgnorePointer(
+                                child: TextField(
+                                  controller: tireControllers[_selectedWheel],
+                                  decoration: _inputDecoration(
+                                    '제조일 선택 (예: 2023-06-19)',
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFFE8E8E8),
+                                foregroundColor: Color(0xFF666666),
+                              ),
+                              child: Text('취소'),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                final plate = plateController.text.trim();
+                                final mileage = mileageController.text.trim();
+
+                                if (plate.isEmpty ||
+                                    mileage.isEmpty ||
+                                    int.tryParse(mileage) == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('차량번호와 주행거리를 정확히 입력해주세요.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final incompletePositions =
+                                    _tireDates.entries
+                                        .where(
+                                          (entry) => entry.value.trim().isEmpty,
+                                        )
+                                        .map(
+                                          (entry) =>
+                                              entry.key
+                                                  .toString()
+                                                  .split('.')
+                                                  .last,
+                                        )
+                                        .toList();
+
+                                if (incompletePositions.isNotEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '다음 위치의 타이어 제조일을 입력해주세요: ${incompletePositions.join(', ')}',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final user = FirebaseAuth.instance.currentUser;
+                                if (user == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('로그인이 필요합니다.')),
+                                  );
+                                  return;
+                                }
+
+                                final userId = user.uid;
+
+                                final carData = {
+                                  'model': car.model,
+                                  'efficiency': car.efficiency,
+                                  'imageUrl': car.imageUrl,
+                                  'plate': plate,
+                                  'mileage': int.parse(mileage),
+                                  'createdAt': FieldValue.serverTimestamp(),
+                                  'tireDateLeftFront':
+                                      _tireDates[WheelPosition.leftFront],
+                                  'tireDateLeftRear':
+                                      _tireDates[WheelPosition.leftRear],
+                                  'tireDateRightFront':
+                                      _tireDates[WheelPosition.rightFront],
+                                  'tireDateRightRear':
+                                      _tireDates[WheelPosition.rightRear],
+                                };
+
+                                try {
+                                  await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(userId)
+                                      .collection('cars')
+                                      .add(carData);
+
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('차량이 성공적으로 등록되었습니다.'),
+                                    ),
+                                  );
+
+                                  Navigator.of(context).pop(carData);
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('등록 실패: $e')),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF282931),
+                              ),
+                              child: Text(
+                                '등록',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         );

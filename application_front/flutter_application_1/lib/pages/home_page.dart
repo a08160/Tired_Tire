@@ -71,6 +71,12 @@ class _HomePageState extends State<HomePage> {
     _loadUserCars();
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   List<Car> _selectedCars = [];
   int _currentPage = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -273,6 +279,7 @@ class _HomePageState extends State<HomePage> {
             .collection('users')
             .doc(user.uid)
             .collection('cars')
+            .orderBy('createdAt', descending: false) // 등록 순서 기준 오름차순
             .get();
 
     setState(() {
@@ -284,36 +291,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _addCar() async {
-    final selectedCar = await Navigator.push<Car>(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => CarPage()),
-    );
-
-    if (selectedCar != null) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      final docRef = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('cars')
-          .add(selectedCar.toMap());
-
-      setState(() {
-        _selectedCars.add(
-          Car(
-            model: selectedCar.model,
-            efficiency: selectedCar.efficiency,
-            imageUrl: selectedCar.imageUrl,
-            plate: selectedCar.plate,
-            tireDate: selectedCar.tireDate,
-            mileage: selectedCar.mileage,
-            docId: docRef.id,
-          ),
-        );
-        _currentPage = _selectedCars.length - 1;
-      });
-    }
+    ).then((result) async {
+      // 무조건 새로고침
+      await _loadUserCars();
+      if (_selectedCars.isNotEmpty) {
+        setState(() {
+          _currentPage = _selectedCars.length - 1;
+          _pageController.jumpToPage(_currentPage);
+        });
+      }
+    });
   }
 
   void _showCarOptions(int index) {
@@ -587,7 +577,7 @@ class _HomePageState extends State<HomePage> {
                             Center(
                               child: Image.network(
                                 car.imageUrl,
-                                height: 120,
+                                height: 130,
                                 fit: BoxFit.contain,
                                 errorBuilder:
                                     (_, __, ___) =>
@@ -606,11 +596,6 @@ class _HomePageState extends State<HomePage> {
                             Text(
                               car.efficiency,
                               style: TextStyle(color: Colors.black54),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              '타이어가 정상입니다.',
-                              style: TextStyle(color: Colors.redAccent),
                             ),
                           ],
                         ),

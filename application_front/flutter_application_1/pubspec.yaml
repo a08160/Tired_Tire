@@ -57,13 +57,28 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  flutter_launcher_icons: ^0.13.1
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.4.0
+
+flutter_native_splash:
+  color: "#2c2b34" # 배경 색상
+  image: assets/splash/logo.png # 보여줄 이미지 경로
+  android: true
+  ios: false
+  web: false
+  android_gravity: center
+
+flutter_icons:
+  android: true
+  ios: false
+  web: false
+  image_path: "assets/icon/app_icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -75,6 +90,7 @@ flutter:
     - assets/car.png
     - assets/car_data.csv
     - assets/service_center.csv
+    - assets/splash/logo.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

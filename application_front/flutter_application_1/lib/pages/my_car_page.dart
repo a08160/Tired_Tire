@@ -409,7 +409,7 @@ class _MyCarPageState extends State<MyCarPage> {
           .doc(car.docId!)
           .delete();
 
-      _fetchCars();
+      Navigator.of(context).pop(true); // ✅ HomePage에 차량이 삭제되었다고 알려줌
     }
   }
 
@@ -465,24 +465,33 @@ class _MyCarPageState extends State<MyCarPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  car.model,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    car.model,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    softWrap: true,
                                   ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(car.plate, style: TextStyle(fontSize: 16)),
-                              ],
+                                  SizedBox(height: 4),
+                                  Text(
+                                    car.plate,
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
                             ),
+                            SizedBox(width: 12), // 이미지와 텍스트 사이 간격
                             (car.imageUrl ?? '').isNotEmpty
                                 ? Image.network(
                                   car.imageUrl!,
-                                  width: 200,
+                                  width: 120,
                                   fit: BoxFit.contain,
                                 )
                                 : Image.asset(
@@ -491,6 +500,7 @@ class _MyCarPageState extends State<MyCarPage> {
                                 ),
                           ],
                         ),
+
                         SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,

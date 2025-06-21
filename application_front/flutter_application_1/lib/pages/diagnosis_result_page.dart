@@ -52,37 +52,104 @@ class _DiagnosisResultPageState extends State<DiagnosisResultPage> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButton<String>(
-                    value: selectedCarId,
-                    hint: Text("차량을 선택해주세요"),
-                    items:
-                        carDocs.map((doc) {
-                          final model = doc['model'];
-                          final plate = doc['plate'];
-                          return DropdownMenuItem<String>(
-                            value: doc.id,
-                            child: Text("$model ($plate)"),
-                          );
-                        }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedCarId = value;
-                      });
-                    },
+                  // ✅ 드롭다운을 SizedBox로 감싸기
+                  SizedBox(
+                    width: 250,
+                    child: DropdownButton<String>(
+                      value: selectedCarId,
+                      hint: Text("차량을 선택해주세요"),
+                      isExpanded: true, // 내부 텍스트 줄바꿈 방지
+                      items:
+                          carDocs.map((doc) {
+                            final model = doc['model'];
+                            final plate = doc['plate'];
+                            return DropdownMenuItem<String>(
+                              value: doc.id,
+                              child: Text("$model ($plate)"),
+                            );
+                          }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCarId = value;
+                        });
+                      },
+                    ),
                   ),
                   SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    children:
-                        ["좌측 앞바퀴", "우측 앞바퀴", "좌측 뒷바퀴", "우측 뒷바퀴"].map((pos) {
-                          final isSelected = pos == selectedWheel;
-                          return ChoiceChip(
-                            label: Text(pos),
-                            selected: isSelected,
-                            onSelected:
-                                (_) => setState(() => selectedWheel = pos),
-                          );
-                        }).toList(),
+                  SizedBox(
+                    width: 250,
+                    height: 250,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // 차량 이미지
+                        Image.asset('assets/car_top_view.png', width: 180),
+
+                        // 좌측 앞바퀴
+                        Positioned(
+                          top: 50,
+                          left: 10,
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => selectedWheel = "좌측 앞바퀴"),
+                            child: Image.asset(
+                              selectedWheel == "좌측 앞바퀴"
+                                  ? 'assets/tire_blue.png'
+                                  : 'assets/tire_black.png',
+                              width: 50,
+                            ),
+                          ),
+                        ),
+
+                        // 우측 앞바퀴
+                        Positioned(
+                          top: 50,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => selectedWheel = "우측 앞바퀴"),
+                            child: Image.asset(
+                              selectedWheel == "우측 앞바퀴"
+                                  ? 'assets/tire_blue.png'
+                                  : 'assets/tire_black.png',
+                              width: 50,
+                            ),
+                          ),
+                        ),
+
+                        // 좌측 뒷바퀴
+                        Positioned(
+                          bottom: 50,
+                          left: 10,
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => selectedWheel = "좌측 뒷바퀴"),
+                            child: Image.asset(
+                              selectedWheel == "좌측 뒷바퀴"
+                                  ? 'assets/tire_blue.png'
+                                  : 'assets/tire_black.png',
+                              width: 50,
+                            ),
+                          ),
+                        ),
+
+                        // 우측 뒷바퀴
+                        Positioned(
+                          bottom: 50,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => selectedWheel = "우측 뒷바퀴"),
+                            child: Image.asset(
+                              selectedWheel == "우측 뒷바퀴"
+                                  ? 'assets/tire_blue.png'
+                                  : 'assets/tire_black.png',
+                              width: 50,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   if (selectedWheel != null)
                     Padding(

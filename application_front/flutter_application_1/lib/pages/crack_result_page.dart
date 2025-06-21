@@ -48,37 +48,104 @@ class _CrackResultPageState extends State<CrackResultPage> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButton<String>(
-                    value: selectedCarId,
-                    hint: Text("차량을 선택해주세요"),
-                    items:
-                        carDocs.map((doc) {
-                          final model = doc['model'];
-                          final plate = doc['plate'];
-                          return DropdownMenuItem<String>(
-                            value: doc.id,
-                            child: Text("$model ($plate)"),
-                          );
-                        }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedCarId = value;
-                      });
-                    },
+                  // ✅ 드롭다운을 SizedBox로 감싸기
+                  SizedBox(
+                    width: 250,
+                    child: DropdownButton<String>(
+                      value: selectedCarId,
+                      hint: Text("차량을 선택해주세요"),
+                      isExpanded: true, // 내부 텍스트 줄바꿈 방지
+                      items:
+                          carDocs.map((doc) {
+                            final model = doc['model'];
+                            final plate = doc['plate'];
+                            return DropdownMenuItem<String>(
+                              value: doc.id,
+                              child: Text("$model ($plate)"),
+                            );
+                          }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCarId = value;
+                        });
+                      },
+                    ),
                   ),
                   SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    children:
-                        ["좌측 앞바퀴", "우측 앞바퀴", "좌측 뒷바퀴", "우측 뒷바퀴"].map((pos) {
-                          final isSelected = pos == selectedWheel;
-                          return ChoiceChip(
-                            label: Text(pos),
-                            selected: isSelected,
-                            onSelected:
-                                (_) => setState(() => selectedWheel = pos),
-                          );
-                        }).toList(),
+                  SizedBox(
+                    width: 250,
+                    height: 250,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // 차량 이미지
+                        Image.asset('assets/car_top_view.png', width: 180),
+
+                        // 좌측 앞바퀴
+                        Positioned(
+                          top: 50,
+                          left: 10,
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => selectedWheel = "좌측 앞바퀴"),
+                            child: Image.asset(
+                              selectedWheel == "좌측 앞바퀴"
+                                  ? 'assets/tire_blue.png'
+                                  : 'assets/tire_black.png',
+                              width: 50,
+                            ),
+                          ),
+                        ),
+
+                        // 우측 앞바퀴
+                        Positioned(
+                          top: 50,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => selectedWheel = "우측 앞바퀴"),
+                            child: Image.asset(
+                              selectedWheel == "우측 앞바퀴"
+                                  ? 'assets/tire_blue.png'
+                                  : 'assets/tire_black.png',
+                              width: 50,
+                            ),
+                          ),
+                        ),
+
+                        // 좌측 뒷바퀴
+                        Positioned(
+                          bottom: 50,
+                          left: 10,
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => selectedWheel = "좌측 뒷바퀴"),
+                            child: Image.asset(
+                              selectedWheel == "좌측 뒷바퀴"
+                                  ? 'assets/tire_blue.png'
+                                  : 'assets/tire_black.png',
+                              width: 50,
+                            ),
+                          ),
+                        ),
+
+                        // 우측 뒷바퀴
+                        Positioned(
+                          bottom: 50,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => selectedWheel = "우측 뒷바퀴"),
+                            child: Image.asset(
+                              selectedWheel == "우측 뒷바퀴"
+                                  ? 'assets/tire_blue.png'
+                                  : 'assets/tire_black.png',
+                              width: 50,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   if (selectedWheel != null)
                     Padding(
@@ -217,6 +284,19 @@ class _CrackResultPageState extends State<CrackResultPage> {
               ],
             ),
             SizedBox(height: 30),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLegendDot(Colors.red, '고위험도 균열'),
+                SizedBox(width: 12),
+                _buildLegendDot(Colors.orange, '중위험도 균열'),
+                SizedBox(width: 12),
+                _buildLegendDot(Colors.yellow[700]!, '저위험도 균열'),
+              ],
+            ),
+            SizedBox(height: 30),
+
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(16),
@@ -390,5 +470,19 @@ class _CrackResultPageState extends State<CrackResultPage> {
     } else {
       return "균열 위험도가 ${score}점으로 심각한 균열이 있습니다. 즉시 점검이 필요합니다.";
     }
+  }
+
+  Widget _buildLegendDot(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 14)),
+      ],
+    );
   }
 }

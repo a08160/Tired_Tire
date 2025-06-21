@@ -300,7 +300,12 @@ class _HomePageState extends State<HomePage> {
       if (_selectedCars.isNotEmpty) {
         setState(() {
           _currentPage = _selectedCars.length - 1;
-          _pageController.jumpToPage(_currentPage);
+        });
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_pageController.hasClients) {
+            _pageController.jumpToPage(_currentPage);
+          }
         });
       }
     });
@@ -481,23 +486,33 @@ class _HomePageState extends State<HomePage> {
           ListTile(
             leading: Icon(Icons.person_outline),
             title: Text('프로필 수정'),
-            onTap: () {
-              Navigator.of(context).pop();
-              Navigator.push(
+            onTap: () async {
+              Navigator.of(context).pop(); // 먼저 Drawer 닫기
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => ProfileEditPage()),
               );
+
+              if (result == true) {
+                await _loadUserCars(); // 차량 재로드
+                setState(() {}); // UI 갱신
+              }
             },
           ),
           ListTile(
             leading: Icon(Icons.directions_car_outlined),
             title: Text('내 차 관리'),
-            onTap: () {
+            onTap: () async {
               Navigator.of(context).pop();
-              Navigator.push(
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => MyCarPage()),
               );
+
+              if (result == true) {
+                await _loadUserCars(); // 🔄 삭제 반영
+                setState(() {}); // ✅ UI 갱신
+              }
             },
           ),
         ],

@@ -202,7 +202,7 @@ class _CarPageState extends State<CarPage> {
                             ),
                             Positioned(
                               top: 30,
-                              left: 10,
+                              left: 1,
                               child: GestureDetector(
                                 onTap:
                                     () => setState(
@@ -220,7 +220,7 @@ class _CarPageState extends State<CarPage> {
                             ),
                             Positioned(
                               bottom: 30,
-                              left: 10,
+                              left: 1,
                               child: GestureDetector(
                                 onTap:
                                     () => setState(
@@ -238,7 +238,7 @@ class _CarPageState extends State<CarPage> {
                             ),
                             Positioned(
                               top: 30,
-                              right: 10,
+                              right: 1,
                               child: GestureDetector(
                                 onTap:
                                     () => setState(
@@ -256,7 +256,7 @@ class _CarPageState extends State<CarPage> {
                             ),
                             Positioned(
                               bottom: 30,
-                              right: 10,
+                              right: 1,
                               child: GestureDetector(
                                 onTap:
                                     () => setState(

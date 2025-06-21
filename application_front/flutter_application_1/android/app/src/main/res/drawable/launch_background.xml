@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/splash_color" />
+    <item android:drawable="@color/splash_background" /> <!-- 배경색 -->
     <item>
-        <bitmap android:gravity="center" android:src="@drawable/splash"/>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_logo" /> <!-- 로고 -->
     </item>
 </layer-list>
 

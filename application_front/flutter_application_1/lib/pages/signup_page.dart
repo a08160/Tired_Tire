@@ -14,14 +14,14 @@ class _SignUpPageState extends State<SignUpPage> {
   final _phoneController = TextEditingController();
   final _nicknameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _emailSent = false;
   bool _isAuthVerified = false;
   bool _isSendingEmail = false;
   Timer? _emailCheckTimer;
   String? _gender;
-
-  String _tempPassword = "TempPassword123!";
 
   void _sendEmailVerification() async {
     final email = _emailController.text.trim();
@@ -47,7 +47,8 @@ class _SignUpPageState extends State<SignUpPage> {
       final userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: email,
-            password: _tempPassword,
+            password:
+                _passwordController.text.trim(), // ✅ 여기로 수정해야 유저 비밀번호가 반영됨
           );
 
       final user = userCredential.user!;
@@ -113,6 +114,12 @@ class _SignUpPageState extends State<SignUpPage> {
         _nicknameController.text.trim().isEmpty ||
         !_isAuthVerified) {
       _showSnack('모든 필드를 올바르게 입력하고 이메일 인증을 완료해주세요.');
+      return;
+    }
+    if (_passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty ||
+        _passwordController.text != _confirmPasswordController.text) {
+      _showSnack('비밀번호를 정확히 입력해주세요.');
       return;
     }
 
@@ -205,6 +212,19 @@ class _SignUpPageState extends State<SignUpPage> {
               SizedBox(height: 16),
               _buildInputField('이메일', _emailController),
               SizedBox(height: 10),
+              _buildInputField('비밀번호', _passwordController, obscureText: true),
+              SizedBox(height: 16),
+              _buildInputField(
+                '비밀번호 확인',
+                _confirmPasswordController,
+                obscureText: true,
+              ),
+              SizedBox(height: 16),
+
+              _buildInputField('전화번호', _phoneController),
+              SizedBox(height: 16),
+              _buildInputField('닉네임', _nicknameController),
+              SizedBox(height: 30),
               ElevatedButton(
                 onPressed: _isSendingEmail ? null : _sendEmailVerification,
                 style: ElevatedButton.styleFrom(
@@ -236,10 +256,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     style: TextStyle(color: Colors.greenAccent),
                   ),
                 ),
-              _buildInputField('전화번호', _phoneController),
-              SizedBox(height: 16),
-              _buildInputField('닉네임', _nicknameController),
-              SizedBox(height: 30),
+              SizedBox(height: 24), // 👈 이메일 버튼과 회원가입 버튼 사이 간격 추가
               ElevatedButton(
                 onPressed: _completeSignUp,
                 style: ElevatedButton.styleFrom(
@@ -259,15 +276,20 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  Widget _buildInputField(String label, TextEditingController controller) {
+  Widget _buildInputField(
+    String label,
+    TextEditingController controller, {
+    bool obscureText = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: TextStyle(color: Colors.white)),
         SizedBox(height: 8),
         TextField(
-          cursorColor: Colors.black,
           controller: controller,
+          obscureText: obscureText,
+          cursorColor: Colors.black,
           style: TextStyle(color: Colors.white),
           decoration: InputDecoration(
             filled: true,

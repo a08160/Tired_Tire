@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'pages/welcome_page.dart';
+import 'splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Flutter와 Firebase 연결을 위해 필요
@@ -34,7 +35,7 @@ class MyApp extends StatelessWidget {
           seedColor: Colors.white,
         ).copyWith(background: Colors.white),
       ),
-      home: WelcomePage(),
+      home: const SplashScreen(), // ✅ 진입 화면을 SplashScreen으로 변경
     );
   }
 }

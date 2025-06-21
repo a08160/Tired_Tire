@@ -6,22 +6,23 @@ class WelcomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF2C2B34), // 전체 배경 #2C2B34
+      backgroundColor: Color(0xFF2C2B34),
       body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Spacer(),
 
-            // 자동차 이미지 (왼쪽 조금 자르고 전체 너비 채우기)
-            ClipRect(
-              child: Align(
-                alignment: Alignment.centerLeft, // 왼쪽을 기준으로 잘라냄
-                widthFactor: 1.2, // 1보다 크면 왼쪽이 잘림
+            Container(
+              width: double.infinity,
+              height: MediaQuery.of(context).size.height * 0.45,
+              child: Transform.translate(
+                offset: Offset(-120, 0), // ← 왼쪽으로 이동 (숫자 조절 가능)
                 child: Image.asset(
                   'assets/car.png',
-                  width: double.infinity, // 가로 전체 채움
-                  fit: BoxFit.cover, // 잘 맞추도록 자름
+                  width:
+                      MediaQuery.of(context).size.width *
+                      4.0, // ← 실제 이미지 크기를 키움
+                  fit: BoxFit.cover,
                 ),
               ),
             ),

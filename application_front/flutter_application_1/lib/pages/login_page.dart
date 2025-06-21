@@ -10,24 +10,23 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
-
-  final String _tempPassword = 'TempPassword123!'; // 회원가입 때 사용한 임시 비밀번호
 
   Future<void> _login() async {
     final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-    if (email.isEmpty) {
-      _showSnack('이메일을 입력해주세요.');
+    if (email.isEmpty || password.isEmpty) {
+      _showSnack('이메일과 비밀번호를 모두 입력해주세요.');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      // FirebaseAuth 로그인 시도
       final userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: _tempPassword);
+          .signInWithEmailAndPassword(email: email, password: password);
 
       final user = userCredential.user;
 
@@ -36,7 +35,6 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // Firestore에서 사용자 이름 불러오기
       final userDoc =
           await FirebaseFirestore.instance
               .collection('users')
@@ -79,6 +77,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -111,6 +110,23 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               keyboardType: TextInputType.emailAddress,
+            ),
+            SizedBox(height: 16),
+            TextField(
+              cursorColor: Colors.grey,
+              controller: _passwordController,
+              obscureText: true,
+              style: TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: '비밀번호',
+                labelStyle: TextStyle(color: Colors.white70),
+                filled: true,
+                fillColor: Colors.white24,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+              ),
             ),
             SizedBox(height: 30),
             ElevatedButton(

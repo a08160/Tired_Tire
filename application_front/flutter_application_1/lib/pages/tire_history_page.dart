@@ -262,8 +262,13 @@ class _TireHistoryPageState extends State<TireHistoryPage> {
   }
 
   Widget _buildCarDropdown() {
+    // 현재 selectedCarId가 cars 리스트 안에 있는지 확인
+    final availableIds = cars.map((c) => c['id']).toSet();
+    final safeSelectedId =
+        availableIds.contains(selectedCarId) ? selectedCarId : null;
+
     return DropdownButton<String>(
-      value: selectedCarId,
+      value: safeSelectedId,
       isExpanded: true,
       hint: Text("차량을 선택해주세요"),
       items:
@@ -278,9 +283,9 @@ class _TireHistoryPageState extends State<TireHistoryPage> {
         setState(() {
           selectedCarId = value;
           isLoading = true;
-          records = []; // 변경 시 잠깐 리스트 비우기
+          records = [];
         });
-        await _loadDiagnosisRecords(); // 차량 변경 즉시 데이터 로드
+        await _loadDiagnosisRecords();
       },
     );
   }

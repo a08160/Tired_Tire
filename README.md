@@ -106,3 +106,8 @@
 | **조경록** | 팀원 | 타이어 인식 및 공기압 검출 모델 구현<br>프론트엔드 연동<br>세부 기능 개발 | [![GitHub](https://img.shields.io/badge/GitHub-Profile-black?logo=github)](https://github.com/josh980510) |
 | **김혜은** | 팀원 | 앱 화면 UI/UX 구성<br>백엔드 및 프론트 개발<br>Firebase 연동 | [![GitHub](https://img.shields.io/badge/GitHub-Profile-black?logo=github)](https://github.com/hyeeun619) |
 | **이채연** | 팀원 | 전체 서비스 디자인<br>프로토타입 디자인 | [![GitHub](https://img.shields.io/badge/GitHub-Profile-black?logo=github)](https://github.com/dlanrll) |
+
+---
+
+## 🏆 수상
+![image](https://github.com/user-attachments/assets/1afccef5-83a7-4fea-8125-d3b81c2313dd)
